@@ -3,6 +3,7 @@ import pathlib
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.edge import service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 import secrets
@@ -16,7 +17,7 @@ def generate_token():
     return secrets.token_urlsafe(16)
 
 
-def ini_driver(user, remember_me):
+def ini_driver(remember_me):
     options = webdriver.EdgeOptions()
     token = generate_token()
     if not remember_me:
@@ -24,7 +25,8 @@ def ini_driver(user, remember_me):
     else:
         options.add_argument(f"user-data-dir={pathlib.Path().absolute()}/profiles/{token}")
     options.add_experimental_option("detach", True)
-    driver = webdriver.Edge(options=options)
+    s = service.Service(executable_path='../msedgedriver')
+    driver = webdriver.Edge(options=options, service=s)
     common.driver_list[token] = driver
     driver.set_window_size(1920, 1080)
 
@@ -32,7 +34,7 @@ def ini_driver(user, remember_me):
 
 
 def sign_in(user, credentials, remember_me):
-    token = ini_driver(user, remember_me)
+    token = ini_driver(remember_me)
     driver = common.driver_list[token]
 
     # navigate to sign in form
