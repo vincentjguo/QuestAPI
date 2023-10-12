@@ -12,8 +12,8 @@ driver_list = common.driver_list
 
 # all functions require logged-in user
 
-def search_classes(term, subject, number, user):
-    driver = driver_list[user]
+def search_classes(term, subject, number, token):
+    driver = driver_list[token]
     common.verify_correct_page("Class Schedule", driver)
 
     driver.switch_to.frame(WebDriverWait(driver, timeout=5).until(lambda d: d.find_element(By.CSS_SELECTOR, "#main_target_win0")))
