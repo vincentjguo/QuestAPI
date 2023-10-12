@@ -1,8 +1,7 @@
 from typing import Annotated
 
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, SecurityScopes
-from pydantic import BaseModel, ValidationError
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 from scraper import login, schedule, common
 
