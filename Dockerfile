@@ -42,6 +42,7 @@ USER appuser
 
 # Set edge driver to path
 ENV PATH="${PATH}:/code/api/msedgedriver"
+RUN echo ${PATH}
 
 # Copy the source code into the container.
 COPY ./api /code/api
