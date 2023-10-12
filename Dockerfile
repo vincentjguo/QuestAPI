@@ -36,8 +36,12 @@ RUN adduser \
 # into this layer.
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
+
 # Switch to the non-privileged user to run the application.
 USER appuser
+
+# Set edge driver to path
+ENV PATH="${PATH}:/code/api/msedgedriver"
 
 # Copy the source code into the container.
 COPY ./api /code/api
