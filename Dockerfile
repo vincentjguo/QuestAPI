@@ -36,7 +36,8 @@ RUN adduser \
 # into this layer.
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-RUN apt -y install microsoft-edge-stable
+# install missing libraries
+RUN apt -y install libglib-2.0.so.0 libnss3.so libnssutil3.so libnspr4.so libxcb.so.1
 
 # Switch to the non-privileged user to run the application.
 USER appuser
