@@ -37,16 +37,11 @@ RUN adduser \
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 # install missing libraries
-RUN apt update -y && apt install -y curl gpg
+RUN apt update -y && apt install -y wget gpg
 
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
-# skip cache
-ARG CACHEBUST=1
+RUN wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_117.0.2045.55-1_amd64.deb
 
-RUN install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/ && \
-    sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/edge stable main" > /etc/apt/sources.list.d/microsoft-edge-dev.list' && \
-    rm microsoft.gpg
-RUN apt install -y microsoft-edge-stable
+RUN apt install -y ./microsoft-edge-stable_117.0.2045.55-1_amd64.deb
 
 # Switch to the non-privileged user to run the application.
 USER appuser
