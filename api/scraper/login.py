@@ -25,8 +25,7 @@ def ini_driver(remember_me):
     else:
         options.add_argument(f"user-data-dir={pathlib.Path().absolute()}/profiles/{token}")
     options.add_experimental_option("detach", True)
-    s = service.Service(executable_path='api/msedgedriver')
-    driver = webdriver.Edge(options=options, service=s)
+    driver = webdriver.Edge(options=options)
     common.driver_list[token] = driver
     driver.set_window_size(1920, 1080)
 
