@@ -28,6 +28,7 @@ def ini_driver(remember_me):
     options.add_argument("--headless")
     options.add_argument("--remote-debugging-port=0")
     options.add_argument("--no-sandbox")
+    options.binary_location = "/usr/bin/microsoft-edge-stable"
     s = service.Service(executable_path='api/msedgedriver')
     driver = webdriver.Edge(options=options, service=s)
     common.driver_list[token] = driver
