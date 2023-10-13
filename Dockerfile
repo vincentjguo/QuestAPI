@@ -27,18 +27,6 @@ WORKDIR /code
 
 COPY ./requirements.txt /code/requirements.txt
 
-# Create a non-privileged user that the app will run under.
-# See https://docs.docker.com/develop/develop-images/dockerfile_best-practices/#user
-ARG UID=10001
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    appuser
-
 # Download dependencies as a separate step to take advantage of Docker's caching.
 # Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
 # Leverage a bind mount to requirements.txt to avoid having to copy them into
@@ -48,7 +36,7 @@ RUN python3.12 -m pip install --upgrade pip && \
 
 
 # Switch to the non-privileged user to run the application.
-USER appuser
+USER 1200
 
 # Copy the source code into the container.
 COPY ./api /code/api
