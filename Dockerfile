@@ -37,7 +37,7 @@ RUN adduser \
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 # install missing libraries
-RUN apt update -y && apt install -y libglib2.0-0 libnss3 libnssutil3 libnspr4 libxcb
+RUN apt update -y && apt install -y libglib2.0-0 libnss3 libnspr4 libxcb1
 
 
 # Switch to the non-privileged user to run the application.
