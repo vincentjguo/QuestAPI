@@ -4,6 +4,7 @@ import secrets
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.edge import service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -24,7 +25,8 @@ def ini_driver(remember_me):
     else:
         options.add_argument(f"user-data-dir={pathlib.Path().absolute()}/profiles/{token}")
     options.add_experimental_option("detach", True)
-    driver = webdriver.Edge(options=options)
+    s = service.Service(executable_path='api/msedgedriver')
+    driver = webdriver.Edge(options=options, service=s)
     common.driver_list[token] = driver
     driver.set_window_size(1920, 1080)
 
