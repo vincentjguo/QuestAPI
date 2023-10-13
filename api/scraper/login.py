@@ -27,6 +27,7 @@ def ini_driver(remember_me):
     options.add_experimental_option("detach", True)
     options.binary_location = "./microsoft-edge-stable_117.0.2045.55-1_amd64.deb"
     options.add_argument("--headless")
+    options.add_argument("--remote-debugging-port=0")
     s = service.Service(executable_path='api/msedgedriver')
     driver = webdriver.Edge(options=options, service=s)
     common.driver_list[token] = driver
