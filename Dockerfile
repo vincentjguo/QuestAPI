@@ -4,7 +4,7 @@
 # If you need more help, visit the Dockerfile reference guide at
 # https://docs.docker.com/engine/reference/builder/
 
-FROM browsers/edge:114.0 as base
+FROM browsers/edge:latest as base
 
 USER root
 
@@ -20,6 +20,8 @@ RUN apt update -y && apt install -y libssl-dev openssl build-essential zlib1g-de
 RUN wget https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tgz && \
     tar xzvf Python-3.12.0.tgz && cd Python-3.12.0 && ./configure && \
     make && make install
+
+USER selenium
 
 RUN python3.12 -m ensurepip --default-pip
 
