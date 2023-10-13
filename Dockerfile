@@ -6,6 +6,8 @@
 
 FROM selenium/standalone-edge:latest as base
 
+USER root
+
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
 
