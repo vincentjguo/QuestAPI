@@ -37,10 +37,7 @@ RUN adduser \
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 # install missing libraries
-RUN apt update -y && apt install -y gnupg curl && \
-    curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
-    install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/ && \
-    apt install -y microsoft-edge-stable
+RUN apt update -y && apt install -y libglib-2.0.so.0 libnss3.so libnssutil3.so libnspr4.so libxcb.so.1
 
 
 # Switch to the non-privileged user to run the application.
