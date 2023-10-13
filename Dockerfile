@@ -43,8 +43,8 @@ RUN adduser \
 # Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
 # Leverage a bind mount to requirements.txt to avoid having to copy them into
 # into this layer.
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --upgrade -r /code/requirements.txt
+RUN python3.12 pip install --upgrade pip && \
+    python3.12 pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 
 # Switch to the non-privileged user to run the application.
