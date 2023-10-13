@@ -45,9 +45,6 @@ RUN apt install -y ./microsoft-edge-stable_117.0.2045.55-1_amd64.deb
 
 RUN mkdir profiles
 
-# Switch to the non-privileged user to run the application.
-USER appuser
-
 # Copy the source code into the container.
 COPY ./api /code/api
 
