@@ -49,6 +49,8 @@ USER appuser
 # Copy the source code into the container.
 COPY ./api /code/api
 
+RUN mkdir profiles
+
 # Expose the port that the application listens on.
 EXPOSE 4444
 
