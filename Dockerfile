@@ -37,7 +37,7 @@ RUN adduser \
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 # install missing libraries
-RUN apt install -y gnupg curl && \
+RUN apt update -y && apt install -y gnupg curl && \
     curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
     install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/ && \
     apt install -y microsoft-edge-stable
