@@ -21,7 +21,7 @@ RUN wget https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tgz && \
     tar xzvf Python-3.12.0.tgz && cd Python-3.12.0 && ./configure && \
     make && make install
 
-RUN apt install -y pip
+RUN python3.12 -m ensurepip --default-pip
 
 WORKDIR /code
 
@@ -43,8 +43,8 @@ RUN adduser \
 # Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
 # Leverage a bind mount to requirements.txt to avoid having to copy them into
 # into this layer.
-RUN python3.12 pip install --upgrade pip && \
-    python3.12 pip install --no-cache-dir --upgrade -r /code/requirements.txt
+RUN python3.12 -m pip install --upgrade pip && \
+    python3.12 -m pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 
 # Switch to the non-privileged user to run the application.
