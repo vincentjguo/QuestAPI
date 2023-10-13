@@ -23,7 +23,7 @@ def ini_driver(remember_me):
     if not remember_me:
         options.add_argument("inprivate")
     else:
-        options.add_argument(f"user-data-dir=./profiles/{token}")
+        options.add_argument(f"user-data-dir={pathlib.Path().absolute()}/profiles/{token}")
     options.add_experimental_option("detach", True)
     options.add_argument("--headless")
     options.add_argument("--remote-debugging-port=0")
