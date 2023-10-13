@@ -15,7 +15,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # the application crashes without emitting any logs due to buffering.
 ENV PYTHONUNBUFFERED=1
 
-RUN apt update -y && apt install -y python3 python3-pip
+RUN apt update -y && apt install -y python3.12 python3-pip
 
 WORKDIR /code
 
