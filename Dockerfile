@@ -35,9 +35,6 @@ RUN python3.12 -m pip install --upgrade pip && \
     python3.12 -m pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 
-# Switch to the non-privileged user to run the application.
-USER 1200
-
 # Copy the source code into the container.
 COPY ./api /code/api
 
