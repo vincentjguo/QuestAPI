@@ -15,7 +15,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # the application crashes without emitting any logs due to buffering.
 ENV PYTHONUNBUFFERED=1
 
-RUN apt update -y && apt install -y libssl-dev openssl python3-pip
+RUN apt update -y && apt install -y libssl-dev openssl python3-pip build-essential zlib1g-dev
 
 RUN wget https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tgz && \
     tar xzvf Python-3.12.0.tgz && cd Python-3.12.0 && ./configure && \
