@@ -4,7 +4,7 @@
 # If you need more help, visit the Dockerfile reference guide at
 # https://docs.docker.com/engine/reference/builder/
 
-FROM selenium/standalone-edge:latest as base
+FROM browsers/edge:114.0 as base
 
 USER root
 
