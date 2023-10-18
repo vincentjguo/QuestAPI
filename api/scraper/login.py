@@ -27,6 +27,7 @@ def ini_driver(remember_me):
     options.add_experimental_option("detach", True)
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     """
     options.add_argument("--remote-debugging-port=0")
     options.binary_location = "/usr/bin/microsoft-edge-stable"
