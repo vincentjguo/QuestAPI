@@ -38,6 +38,7 @@ async def authenticate(form_data: Annotated[OAuth2PasswordRequestForm, Depends()
 @app.get("/search/{term}&{subject}&{class_number}")
 async def search_classes(term, subject, class_number, token: Annotated[str, Depends(validate_token)]):
     result = schedule.search_classes(term, subject, class_number, token)
+    # TODO: Add check for if user is signed out
     if result == 2:
         raise HTTPException(status_code=404, detail="No results found")
     if result == 1:
