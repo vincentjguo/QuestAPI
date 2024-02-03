@@ -37,4 +37,14 @@ async def authenticate(form_data: Annotated[OAuth2PasswordRequestForm, Depends()
 
 @app.get("/search/{term}&{subject}&{class_number}")
 async def search_classes(term, subject, class_number, token: Annotated[str, Depends(validate_token)]):
-    return schedule.search_classes(term, subject, class_number, token)
+    result = schedule.search_classes(term, subject, class_number, token)
+    if result == 2:
+        raise HTTPException(status_code=404, detail="No results found")
+    if result == 1:
+        raise HTTPException(status_code=500, detail="Search failed unexpectedly")
+    return result
+
+
+@app.get("/sign_out")
+async def sign_out(token: Annotated[str, Depends(validate_token)]):
+    return login.sign_out(token)

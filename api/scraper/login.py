@@ -1,8 +1,9 @@
 import pathlib
 import secrets
+import shutil
 
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, ElementNotInteractableException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.edge import service
 from selenium.webdriver.support import expected_conditions as EC
@@ -18,6 +19,7 @@ def generate_token():
 
 
 def ini_driver(remember_me):
+    # TODO: Check for existing driver
     options = webdriver.EdgeOptions()
     token = generate_token()
     if not remember_me:
@@ -25,7 +27,7 @@ def ini_driver(remember_me):
     else:
         options.add_argument(f"user-data-dir={pathlib.Path().absolute()}/profiles/{token}")
     options.add_experimental_option("detach", True)
-    options.add_argument("--headless=new")
+    # options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     """
@@ -57,33 +59,39 @@ def sign_in(user, credentials, remember_me):
             driver.find_element(By.ID, 'submitButton').click()
         except TimeoutException as e:  # Sign in failed, password or username incorrect
             print(e)
+            sign_out(token)
+            return 0
+        except ElementNotInteractableException as e:  # Sign in failed, password or username incorrect
+            print(e)
+            sign_out(token)
             return 0
     except TimeoutException:
         print("Already authenticated, continuing...")
 
-    if remember_me:
-        if driver.title == "Homepage":  # already signed in
-            print("DUO Auth passed by cookie")
-            return token
-        else:  # not yet signed in
-            # save cookie
-            driver.switch_to.frame("duo_iframe")
-            wait = WebDriverWait(driver, timeout=5)
-
-            wait.until(lambda d: d.find_element(By.CLASS_NAME, "btn-cancel")).click()
-            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,
-                                                   "#login-form > div:nth-child(17) > div > label > input[type=checkbox]"))).click()
-
-            print("Waiting for DUO auth")
-
-            driver.find_element(By.CSS_SELECTOR, "#auth_methods > fieldset > div.row-label.push-label > button").click()
-
-            driver.switch_to.default_content()
-    # wait until duo auth is passed
+    if driver.title == "Homepage":  # already signed in
+        print("DUO Auth passed by cookie")
+        return token
     try:
-        print("Waiting for user interaction...")
+        print("DUO Auth required. Waiting for user interaction...")
+        if remember_me:
+            wait = WebDriverWait(driver, timeout=120)
+            wait.until(EC.element_to_be_clickable((By.ID, "trust-browser-button"))).click()
+        else:
+            wait = WebDriverWait(driver, timeout=120)
+            wait.until(EC.element_to_be_clickable((By.ID, "dont-trust-browser-button"))).click()
+        # wait until duo auth is passed
         WebDriverWait(driver, timeout=60).until(EC.title_is("Homepage"))
         return token
     except TimeoutException:
         print("Duo Auth timed out")
+        sign_out(token)
         return 0
+
+
+def sign_out(token):
+    driver = common.driver_list[token]
+    driver.quit()
+    del common.driver_list[token]
+    # delete profile folder
+    shutil.rmtree(f"profiles/{token}")
+    return token
