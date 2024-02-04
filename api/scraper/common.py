@@ -19,9 +19,9 @@ def verify_signed_on(token: str) -> bool:
         driver_list[token].find_element(By.CSS_SELECTOR, "#PT_ACTION_MENU\\$PIMG")
         return True
     except NoSuchElementException:
-        logging.warning("{} not signed in", token)
+        logging.warning("%s not signed in", token)
         del driver_list[token]
-        logging.info("Driver removed for {}", token)
+        logging.info("Driver removed for %s", token)
         return False
 
 
@@ -32,15 +32,15 @@ def verify_correct_page(title: str, driver: webdriver) -> None:
     :param driver: driver instance
     """
     try:
-        logging.info("Current page: {}", driver.title)
+        logging.info("Current page: %s", driver.title)
         if driver.title == title:
             logging.info("Already on page, continuing...")
         elif driver.title != "Homepage":
             logging.info("Navigating to homepage")
             driver.find_element(By.ID, "PT_WORK_PT_BUTTON_BACK").click()
 
-        logging.info("Navigating to page {}...", title)
+        logging.info("Navigating to page %s...", title)
         WebDriverWait(driver, timeout=10).until(EC.title_is("Homepage"))
         WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.XPATH, f"//span[.='{title}']")).click()
     except (TimeoutException, NoSuchElementException):
-        logging.exception("Could not navigate to page {}, possible sign out for user {}?", title, driver.title)
+        logging.exception("Could not navigate to page %s, possible sign out for user %s?", title, driver.title)

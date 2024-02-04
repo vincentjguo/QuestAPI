@@ -43,7 +43,7 @@ def ini_driver(remember_me: bool) -> str:
     driver = webdriver.Edge(options=options)
     common.driver_list[token] = driver
     driver.set_window_size(1920, 1080)
-    logging.info("Driver created for {}", token)
+    logging.info("Driver created for %s", token)
 
     return token
 
@@ -59,7 +59,7 @@ def sign_in(user: str, credentials: str, remember_me: bool) -> str:
 
     token: str
     if user in known_users:
-        logging.warning("User {} already assigned token {}", user, known_users[user])
+        logging.warning("User %s already assigned token %s", user, known_users[user])
         token = known_users[user]
     else:
         token = ini_driver(remember_me)
@@ -71,7 +71,7 @@ def sign_in(user: str, credentials: str, remember_me: bool) -> str:
     try:
         WebDriverWait(driver, timeout=10).until(EC.title_is("Sign In"))
         try:
-            logging.info("Signing in as {}", user)
+            logging.info("Signing in as %s", user)
             username = WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.ID, 'userNameInput'))
             username.send_keys(user)
             driver.find_element(By.ID, 'nextButton').click()
@@ -79,7 +79,7 @@ def sign_in(user: str, credentials: str, remember_me: bool) -> str:
             password.send_keys(credentials)
             driver.find_element(By.ID, 'submitButton').click()
         except TimeoutException | ElementNotInteractableException:  # Sign in failed, password or username incorrect
-            logging.exception("Sign in failed for {}", user)
+            logging.exception("Sign in failed for %s", user)
             sign_out(token)
             raise HTTPException(status_code=401, detail="Sign in failed, check username and password")
     except TimeoutException:
@@ -98,7 +98,7 @@ def sign_in(user: str, credentials: str, remember_me: bool) -> str:
             wait.until(EC.element_to_be_clickable((By.ID, "dont-trust-browser-button"))).click()
         # wait until duo auth is passed
         WebDriverWait(driver, timeout=60).until(EC.title_is("Homepage"))
-        logging.info("Sign in successful for {}", user)
+        logging.info("Sign in successful for %s", user)
         return token
     except TimeoutException:
         logging.error("Duo Auth timed out")
@@ -112,7 +112,7 @@ def sign_out(token: str) -> str:
     :param token: token to be signed out
     :return: token that was signed out
     """
-    logging.info("Signing out user {}", token)
+    logging.info("Signing out user %s", token)
     driver = common.driver_list[token]
     driver.quit()
     del common.driver_list[token]

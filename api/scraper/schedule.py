@@ -25,7 +25,7 @@ def search_classes(term, subject, number, token) -> dict:
     driver = driver_list[token]
     common.verify_correct_page("Class Schedule", driver)
 
-    logging.info("Searching for {} {} {}", term, subject, number)
+    logging.info("Searching for %s %s %s", term, subject, number)
     try:
         driver.switch_to.frame(
             WebDriverWait(driver, timeout=5).until(lambda d: d.find_element(By.CSS_SELECTOR, "#main_target_win0")))
@@ -47,7 +47,7 @@ def search_classes(term, subject, number, token) -> dict:
     except TimeoutException as e:
         if (driver.find_element(
                 By.ID, "DERIVED_CLSMSG_ERROR_TEXT").text == "The search returns no results that match the criteria specified."):
-            logging.error("No results found for {} {} {}", term, subject, number)
+            logging.error("No results found for %s %s %s", term, subject, number)
             raise HTTPException(status_code=404, detail="No results found")
         else:
             logging.exception("Search failed")
@@ -55,7 +55,7 @@ def search_classes(term, subject, number, token) -> dict:
 
     table = driver.find_element(By.CSS_SELECTOR, r"#ACE_\$ICField48\$0 > tbody")
     num_of_rows = round(len(driver.find_elements(By.CSS_SELECTOR, r"#ACE_\$ICField48\$0 > tbody > tr")) / 2)
-    logging.info("Found {} sections", num_of_rows)
+    logging.info("Found %s sections", num_of_rows)
 
     data = {}
 
@@ -66,7 +66,7 @@ def search_classes(term, subject, number, token) -> dict:
             table.find_element(By.ID, f"MTG_ROOM\\${i}").text,
             table.find_element(By.ID, f"MTG_INSTR\\${i}").text]
 
-    logging.info("Aggregated data: {}", data)
+    logging.info("Aggregated data: %s", data)
 
     driver.switch_to.default_content()
     return data
