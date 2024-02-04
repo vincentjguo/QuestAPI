@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import FastAPI, Depends, HTTPException, status
@@ -13,23 +14,33 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 
 
-async def validate_token(token: Annotated[str, Depends(oauth2_scheme)]):
+async def validate_token(token: Annotated[str, Depends(oauth2_scheme)]) -> str:
+    """
+    Validates token
+    :param token: provided bearer token
+    :return: provided token if valid
+    """
     if token not in common.driver_list:
+        logging.error("Unauthorized token {}", token)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials, authenticate first!",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if common.verify_signed_on(common.driver_list[token]):
-        raise HTTPException(status_code=408, detail="User signed out")
+    if not common.verify_signed_on(token):
+        logging.error("User with token {} is stale. Authentication needed", token)
+        raise HTTPException(status_code=409, detail="User signed out. Reauthenticate!")
 
+    logging.info("Token {} authenticated successfully!", token)
     return token
 
 
 @app.post("/authenticate")
 async def authenticate(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    logging.info("Received authentication request for user {}", form_data.username)
     response = login.sign_in(form_data.username, form_data.password, "remember_me" in form_data.scopes)
     if not response:
+        logging.error("Sign in failed for {}", form_data.username)
         raise HTTPException(status_code=401, detail="Sign in failed")
 
     return {"access_token": response, "token_type": "bearer"}
@@ -37,15 +48,13 @@ async def authenticate(form_data: Annotated[OAuth2PasswordRequestForm, Depends()
 
 @app.get("/search/{term}&{subject}&{class_number}")
 async def search_classes(term, subject, class_number, token: Annotated[str, Depends(validate_token)]):
+    logging.info("Received search request for {} {} {}", term, subject, class_number)
     result = schedule.search_classes(term, subject, class_number, token)
     # TODO: Add check for if user is signed out
-    if result == 2:
-        raise HTTPException(status_code=404, detail="No results found")
-    if result == 1:
-        raise HTTPException(status_code=500, detail="Search failed unexpectedly")
     return result
 
 
 @app.get("/sign_out")
 async def sign_out(token: Annotated[str, Depends(validate_token)]):
+    logging.info("Received sign out request for user {}", token)
     return login.sign_out(token)

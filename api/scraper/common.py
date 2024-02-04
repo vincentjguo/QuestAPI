@@ -1,3 +1,5 @@
+import logging
+
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.by import By
@@ -7,27 +9,38 @@ from selenium.webdriver.support.ui import WebDriverWait
 driver_list = {}
 
 
-def verify_signed_on(driver):
+def verify_signed_on(token: str) -> bool:
+    """
+    Verifies if user is signed in
+    :param token: token of user
+    :return: true if signed in, false if not
+    """
     try:
-        driver.find_element(By.CSS_SELECTOR, "#PT_ACTION_MENU\\$PIMG")
-        return 0
+        driver_list[token].find_element(By.CSS_SELECTOR, "#PT_ACTION_MENU\\$PIMG")
+        return True
     except NoSuchElementException:
-        print("Not signed on")
-        return 1
+        logging.warning("{} not signed in", token)
+        del driver_list[token]
+        logging.info("Driver removed for {}", token)
+        return False
 
 
-def verify_correct_page(title, driver: webdriver):
+def verify_correct_page(title: str, driver: webdriver) -> None:
+    """
+    Verifies if page is correct, if not navigates to correct page
+    :param title: title of page
+    :param driver: driver instance
+    """
     try:
+        logging.info("Current page: {}", driver.title)
         if driver.title == title:
-            print("Already on page, continuing...")
-            return 0
+            logging.info("Already on page, continuing...")
         elif driver.title != "Homepage":
+            logging.info("Navigating to homepage")
             driver.find_element(By.ID, "PT_WORK_PT_BUTTON_BACK").click()
 
-        print(f"Navigating to page, {title}")
+        logging.info("Navigating to page {}...", title)
         WebDriverWait(driver, timeout=10).until(EC.title_is("Homepage"))
         WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.XPATH, f"//span[.='{title}']")).click()
-        return 0
     except (TimeoutException, NoSuchElementException):
-        print("Could not navigate page, possible sign out?")
-        return 1
+        logging.exception("Could not navigate to page {}, possible sign out for user {}?", title, driver.title)

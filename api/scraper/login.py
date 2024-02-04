@@ -1,25 +1,31 @@
+import logging
 import pathlib
 import secrets
 import shutil
 
+from fastapi import HTTPException
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, ElementNotInteractableException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.edge import service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import common
 
 URL = "https://quest.pecs.uwaterloo.ca/psp/SS/?cmd=loginlanguageCd+ENG"
+known_users = {}
 
 
 def generate_token():
     return secrets.token_urlsafe(16)
 
 
-def ini_driver(remember_me):
-    # TODO: Check for existing driver
+def ini_driver(remember_me: bool) -> str:
+    """
+    Initializes a new driver instance
+    :param remember_me: if session should be persistent
+    :return: token of new driver instance
+    """
     options = webdriver.EdgeOptions()
     token = generate_token()
     if not remember_me:
@@ -30,49 +36,60 @@ def ini_driver(remember_me):
     # options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    """
-    options.add_argument("--remote-debugging-port=0")
-    options.binary_location = "/usr/bin/microsoft-edge-stable"
-    s = service.Service(executable_path='api/msedgedriver')"""
+    # """
+    # options.add_argument("--remote-debugging-port=0")
+    # options.binary_location = "/usr/bin/microsoft-edge-stable"
+    # s = service.Service(executable_path='api/msedgedriver')"""
     driver = webdriver.Edge(options=options)
     common.driver_list[token] = driver
     driver.set_window_size(1920, 1080)
+    logging.info("Driver created for {}", token)
 
     return token
 
 
-def sign_in(user, credentials, remember_me):
-    token = ini_driver(remember_me)
-    driver = common.driver_list[token]
+def sign_in(user: str, credentials: str, remember_me: bool) -> str:
+    """
+    Sign in user and creates new driver instance if new user
+    :param user: uwaterloo email
+    :param credentials: password
+    :param remember_me: if session should be persistent
+    :return: token of user
+    """
 
+    token: str
+    if user in known_users:
+        logging.warning("User {} already assigned token {}", user, known_users[user])
+        token = known_users[user]
+    else:
+        token = ini_driver(remember_me)
+
+    driver = common.driver_list[token]
     # navigate to sign in form
     driver.get(URL)
     driver.find_element(By.LINK_TEXT, "Sign In").click()
     try:
         WebDriverWait(driver, timeout=10).until(EC.title_is("Sign In"))
         try:
+            logging.info("Signing in as {}", user)
             username = WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.ID, 'userNameInput'))
             username.send_keys(user)
             driver.find_element(By.ID, 'nextButton').click()
             password = WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.ID, 'passwordInput'))
             password.send_keys(credentials)
             driver.find_element(By.ID, 'submitButton').click()
-        except TimeoutException as e:  # Sign in failed, password or username incorrect
-            print(e)
+        except TimeoutException | ElementNotInteractableException:  # Sign in failed, password or username incorrect
+            logging.exception("Sign in failed for {}", user)
             sign_out(token)
-            return 0
-        except ElementNotInteractableException as e:  # Sign in failed, password or username incorrect
-            print(e)
-            sign_out(token)
-            return 0
+            raise HTTPException(status_code=401, detail="Sign in failed, check username and password")
     except TimeoutException:
-        print("Already authenticated, continuing...")
+        logging.info("Already authenticated, continuing...")
 
     if driver.title == "Homepage":  # already signed in
-        print("DUO Auth passed by cookie")
+        logging.info("DUO Auth passed by cookie")
         return token
     try:
-        print("DUO Auth required. Waiting for user interaction...")
+        logging.info("DUO Auth required. Waiting for user interaction...")
         if remember_me:
             wait = WebDriverWait(driver, timeout=120)
             wait.until(EC.element_to_be_clickable((By.ID, "trust-browser-button"))).click()
@@ -81,14 +98,21 @@ def sign_in(user, credentials, remember_me):
             wait.until(EC.element_to_be_clickable((By.ID, "dont-trust-browser-button"))).click()
         # wait until duo auth is passed
         WebDriverWait(driver, timeout=60).until(EC.title_is("Homepage"))
+        logging.info("Sign in successful for {}", user)
         return token
     except TimeoutException:
-        print("Duo Auth timed out")
+        logging.error("Duo Auth timed out")
         sign_out(token)
-        return 0
+        raise HTTPException(status_code=401, detail="Duo Auth timed out")
 
 
-def sign_out(token):
+def sign_out(token: str) -> str:
+    """
+    Signs out user and deletes driver instance
+    :param token: token to be signed out
+    :return: token that was signed out
+    """
+    logging.info("Signing out user {}", token)
     driver = common.driver_list[token]
     driver.quit()
     del common.driver_list[token]
