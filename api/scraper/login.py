@@ -11,27 +11,28 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import common
+from .common import delete_session
 
-URL = "https://quest.pecs.uwaterloo.ca/psp/SS/?cmd=loginlanguageCd+ENG"
-known_users = {}
-
-
-def generate_token():
-    return secrets.token_urlsafe(16)
+URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL"
 
 
-def ini_driver(remember_me: bool) -> str:
+class UserAuthenticationException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+def ini_driver(token: str, remember_me: bool) -> webdriver.Edge:
     """
     Initializes a new driver instance
+    :param token: user token
     :param remember_me: if session should be persistent
-    :return: token of new driver instance
+    :return driver instance
     """
     options = webdriver.EdgeOptions()
-    token = generate_token()
     if not remember_me:
         options.add_argument("inprivate")
     else:
-        options.add_argument(f"user-data-dir={pathlib.Path().absolute()}/profiles/{token}")
+        options.add_argument(f"user-data-dir={pathlib.Path(__file__).parent}/../profiles/{token}")
     options.add_experimental_option("detach", True)
     # options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
@@ -45,29 +46,52 @@ def ini_driver(remember_me: bool) -> str:
     driver.set_window_size(1920, 1080)
     logging.info("Driver created for %s", token)
 
-    return token
+    return driver
 
 
-def sign_in(user: str, credentials: str, remember_me: bool) -> str:
+def recreate_session(token: str) -> None:
+    """
+    Recreates session for user
+    :param token: token of user
+    """
+    if token in common.driver_list:
+        driver = common.driver_list[token]
+    else:
+        logging.info("Recreating session for %s", token)
+        driver = ini_driver(token, True)
+
+    driver.get(URL)
+
+    if not common.verify_signed_on(token):
+        raise UserAuthenticationException("Session expired, sign in again")
+
+
+def sign_in(user: str, credentials: str, remember_me: bool, token: str) -> str:
     """
     Sign in user and creates new driver instance if new user
+    :param token: newly generated token
     :param user: uwaterloo email
     :param credentials: password
     :param remember_me: if session should be persistent
-    :return: token of user
+    :return: duo auth code if required, '' if not
     """
 
-    token: str
-    if user in known_users:
-        logging.warning("User %s already assigned token %s", user, known_users[user])
-        token = known_users[user]
-    else:
-        token = ini_driver(remember_me)
+    if user in common.known_users:
+        logging.info("User %s already assigned token %s", user, common.known_users[user])
+        token = common.known_users[user]
+    elif remember_me:
+        common.known_users[user] = token
 
-    driver = common.driver_list[token]
+    if token in common.driver_list:
+        driver = common.driver_list[token]
+    else:
+        driver = ini_driver(token, remember_me)
     # navigate to sign in form
     driver.get(URL)
-    driver.find_element(By.LINK_TEXT, "Sign In").click()
+
+    if common.verify_signed_on(token):  # user already signed in
+        return ''
+
     try:
         WebDriverWait(driver, timeout=10).until(EC.title_is("Sign In"))
         try:
@@ -78,44 +102,50 @@ def sign_in(user: str, credentials: str, remember_me: bool) -> str:
             password = WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.ID, 'passwordInput'))
             password.send_keys(credentials)
             driver.find_element(By.ID, 'submitButton').click()
-        except TimeoutException | ElementNotInteractableException:  # Sign in failed, password or username incorrect
-            logging.exception("Sign in failed for %s", user)
+        except (TimeoutException, ElementNotInteractableException) as e:
+            logging.exception("Sign in failed for %s with %e", user, e)
             sign_out(token)
-            raise HTTPException(status_code=401, detail="Sign in failed, check username and password")
+            raise UserAuthenticationException("Sign in failed, check username and password")
     except TimeoutException:
         logging.info("Already authenticated, continuing...")
 
     if driver.title == "Homepage":  # already signed in
         logging.info("DUO Auth passed by cookie")
-        return token
+        return ''
+    else:
+        WebDriverWait(driver, timeout=10).until(EC.presence_of_element_located((By.CLASS_NAME, "verification-code")))
+        duo_auth_code = driver.find_element(By.CLASS_NAME, 'verification-code').text
+        logging.info(f"Parsed DUO Auth code: {duo_auth_code}")
+        return duo_auth_code
+
+
+def duo_auth(token: str, remember_me) -> str:
+    driver = common.driver_list[token]
+    logging.info("DUO Auth required. Waiting for user interaction...")
     try:
-        logging.info("DUO Auth required. Waiting for user interaction...")
+        wait = WebDriverWait(driver, timeout=120)
         if remember_me:
-            wait = WebDriverWait(driver, timeout=120)
             wait.until(EC.element_to_be_clickable((By.ID, "trust-browser-button"))).click()
         else:
-            wait = WebDriverWait(driver, timeout=120)
             wait.until(EC.element_to_be_clickable((By.ID, "dont-trust-browser-button"))).click()
         # wait until duo auth is passed
         WebDriverWait(driver, timeout=60).until(EC.title_is("Homepage"))
-        logging.info("Sign in successful for %s", user)
+        logging.info("Sign in successful for %s", token)
         return token
     except TimeoutException:
         logging.error("Duo Auth timed out")
         sign_out(token)
-        raise HTTPException(status_code=401, detail="Duo Auth timed out")
+        raise UserAuthenticationException("Duo Auth timed out")
 
 
 def sign_out(token: str) -> str:
     """
-    Signs out user and deletes driver instance
+    Signs out user, deletes user data and driver instance
     :param token: token to be signed out
     :return: token that was signed out
     """
     logging.info("Signing out user %s", token)
-    driver = common.driver_list[token]
-    driver.quit()
-    del common.driver_list[token]
+    delete_session(token, True)
     # delete profile folder
     shutil.rmtree(f"profiles/{token}")
     return token

@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 driver_list = {}
+known_users = {}
 
 
 def verify_signed_on(token: str) -> bool:
@@ -20,8 +21,7 @@ def verify_signed_on(token: str) -> bool:
         return True
     except NoSuchElementException:
         logging.warning("%s not signed in", token)
-        del driver_list[token]
-        logging.info("Driver removed for %s", token)
+        delete_session(token)
         return False
 
 
@@ -44,3 +44,18 @@ def verify_correct_page(title: str, driver: webdriver) -> None:
         WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.XPATH, f"//span[.='{title}']")).click()
     except (TimeoutException, NoSuchElementException):
         logging.exception("Could not navigate to page %s, possible sign out for user %s?", title, driver.title)
+
+
+def delete_session(token: str, quit_session=False) -> None:
+    """
+    Deletes session
+    :param quit_session:
+    :param token: token of user
+    """
+    if quit_session:
+        driver_list[token].quit()
+        del driver_list[token]
+        logging.info("Driver removed for %s", token)
+    else:
+        driver_list[token].close()
+        logging.info("Session closed for %s", token)
