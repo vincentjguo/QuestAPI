@@ -20,8 +20,7 @@ def verify_signed_on(token: str) -> bool:
         driver_list[token].find_element(By.CSS_SELECTOR, "#PT_ACTION_MENU\\$PIMG")
         return True
     except NoSuchElementException:
-        logging.warning("%s not signed in", token)
-        delete_session(token)
+        logging.info("%s not signed in", token)
         return False
 
 
@@ -46,16 +45,14 @@ def verify_correct_page(title: str, driver: webdriver) -> None:
         logging.exception("Could not navigate to page %s, possible sign out for user %s?", title, driver.title)
 
 
-def delete_session(token: str, quit_session=False) -> None:
+def delete_session(token: str) -> None:
     """
     Deletes session
-    :param quit_session:
     :param token: token of user
     """
-    if quit_session:
-        driver_list[token].quit()
-        del driver_list[token]
-        logging.info("Driver removed for %s", token)
-    else:
-        driver_list[token].close()
-        logging.info("Session closed for %s", token)
+    if token not in driver_list and token is not None:
+        logging.debug("No driver found for %s. Ignoring...", token)
+        return
+    driver_list[token].quit()
+    del driver_list[token]
+    logging.info("Driver removed for %s", token)
