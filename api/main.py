@@ -17,15 +17,16 @@ class WebsocketResponseCode(IntEnum):
     """
     Enum for websocket response codes
 
-    CRITICAL: Connection cannot continue, will be shutdown
-
-    ERROR: Error occurred, connection will continue
-
-    STATUS: Status message, process not finished
-
-    SUCCESS: Successful operation, ready for next query
-
-    PARTIAL_SUCCESS: Successful operation, but requires additional interaction
+    CRITICAL
+        Connection cannot continue, will be shutdown
+    ERROR
+        Error occurred, connection will continue
+    STATUS
+        Status message, process not finished
+    SUCCESS
+        Successful operation, ready for next query
+    PARTIAL_SUCCESS
+        Successful operation, but requires additional interaction
     """
     CRITICAL = -2
     ERROR = -1

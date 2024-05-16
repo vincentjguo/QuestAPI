@@ -9,8 +9,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import common
-
-driver_list = common.driver_list
+from common import driver_list
 
 
 def search_classes(term, subject, number, token) -> dict:
