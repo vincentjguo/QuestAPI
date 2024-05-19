@@ -22,8 +22,11 @@ PROFILE_PATH = f"{pathlib.Path(__file__).parent.parent}/profiles"
 
 
 class UserAuthenticationException(Exception):
-    def __init__(self, message):
+    token: str
+
+    def __init__(self, message, token):
         super().__init__(message)
+        self.token = token
 
 
 def create_token() -> str:
@@ -107,7 +110,7 @@ def recreate_session(token: str) -> None:
     driver.get(URL)
 
     if not common.verify_signed_on(token):
-        raise UserAuthenticationException("Session expired, sign in again")
+        raise UserAuthenticationException("Session expired, sign in again", token)
 
 
 def sign_in(user: str, credentials: str, remember_me: bool) -> [str, str]:
@@ -145,8 +148,7 @@ def sign_in(user: str, credentials: str, remember_me: bool) -> [str, str]:
             driver.find_element(By.ID, 'submitButton').click()
         except (TimeoutException, ElementNotInteractableException) as e:
             logging.exception("Sign in failed for %s with %e", user, e)
-            sign_out(token)
-            raise UserAuthenticationException("Sign in failed, check username and password")
+            raise UserAuthenticationException("Sign in failed, check username and password", token)
     except TimeoutException:
         logging.info("Already authenticated, continuing...")
 
@@ -182,7 +184,7 @@ def duo_auth(token: str, remember_me: bool) -> None:
         dump_cookies(token, driver.get_cookies())
     except TimeoutException:
         logging.error("Duo Auth timed out")
-        raise UserAuthenticationException("Duo Auth timed out")
+        raise UserAuthenticationException("Duo Auth timed out", token)
 
 
 def sign_out(token: str) -> str:
@@ -194,9 +196,9 @@ def sign_out(token: str) -> str:
     logging.info("Signing out user %s", token)
     delete_session(token)
     # delete profile folder
-    user_to_delete = {k: v for k, v in common.known_users.items() if v == token}.keys()
-    del common.known_users[user_to_delete]
+    user_to_delete = next((key for key, value in common.known_users.items() if value == token), None)
     if user_to_delete is not None:
+        del common.known_users[user_to_delete]
         shutil.rmtree(f"profiles/{token}")
 
     return token

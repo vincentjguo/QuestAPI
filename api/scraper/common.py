@@ -22,6 +22,9 @@ def verify_signed_on(token: str) -> bool:
     except NoSuchElementException:
         logging.info("%s not signed in", token)
         return False
+    except KeyError:
+        logging.info("No driver found for %s", token)
+        return False
 
 
 def verify_correct_page(title: str, driver: webdriver) -> None:
