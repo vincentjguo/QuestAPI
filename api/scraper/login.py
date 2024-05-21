@@ -4,20 +4,17 @@ import pickle
 import secrets
 import shutil
 
-from fastapi import HTTPException
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, ElementNotInteractableException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.edge.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.ui import WebDriverWait
 
 from . import common
-from .common import delete_session
+from .common import delete_session, driver_list, wait_for_element
 
 URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL"
-
 DUMMY_URL = "https://quest.pecs.uwaterloo.ca/nonexistent"
-
 PROFILE_PATH = f"{pathlib.Path(__file__).parent.parent}/profiles"
 
 
@@ -48,26 +45,7 @@ def dump_cookies(token: str, cookies: dict) -> None:
         pickle.dump(cookies, f)
 
 
-def load_cookies(token: str) -> None:
-    """
-    Utility function to load cookies from file
-    :param token: User token
-    :return: None
-    """
-    driver = common.driver_list[token]
-    try:
-        with open(f"{PROFILE_PATH}/{token}/cookieJar.pkl", "rb") as f:
-            cookies = pickle.load(f)
-    except FileNotFoundError:
-        logging.warning("No cookies found for %s", token)
-        return
-    driver.get(DUMMY_URL)
-    for cookie in cookies:
-        logging.debug("Adding cookie %s", cookie)
-        common.driver_list[token].add_cookie(cookie)
-
-
-def ini_driver(token: str, remember_me: bool) -> webdriver.Edge:
+def ini_driver(token: str, remember_me: bool) -> WebDriver:
     """
     Initializes a new driver instance
     :param token: user token
@@ -87,12 +65,31 @@ def ini_driver(token: str, remember_me: bool) -> webdriver.Edge:
     # options.add_argument("--remote-debugging-port=0")
     # options.binary_location = "/usr/bin/microsoft-edge-stable"
     # s = service.Service(executable_path='api/msedgedriver')"""
-    driver = webdriver.Edge(options=options)
-    common.driver_list[token] = driver
+    driver = WebDriver(options=options)
+    driver_list[token] = driver
     driver.set_window_size(1920, 1080)
     logging.info("Driver created for %s", token)
 
     return driver
+
+
+def load_cookies(token: str) -> None:
+    """
+    Utility function to load cookies from file
+    :param token: User token
+    :return: None
+    """
+    driver = common.driver_list[token]
+    try:
+        with open(f"{PROFILE_PATH}/{token}/cookieJar.pkl", "rb") as f:
+            cookies = pickle.load(f)
+    except FileNotFoundError:
+        logging.warning("No cookies found for %s", token)
+        return
+    driver.get(DUMMY_URL)
+    for cookie in cookies:
+        logging.debug("Adding cookie %s", cookie)
+        common.driver_list[token].add_cookie(cookie)
 
 
 def recreate_session(token: str) -> None:
@@ -113,7 +110,7 @@ def recreate_session(token: str) -> None:
         raise UserAuthenticationException("Session expired, sign in again", token)
 
 
-def sign_in(user: str, credentials: str, remember_me: bool) -> [str, str]:
+async def sign_in(user: str, credentials: str, remember_me: bool) -> [str, str]:
     """
     Sign in user and creates new driver instance if new user
     :param user: uWaterloo email
@@ -137,13 +134,13 @@ def sign_in(user: str, credentials: str, remember_me: bool) -> [str, str]:
     driver.get(URL)
 
     try:
-        WebDriverWait(driver, timeout=10).until(ec.title_is("Sign In"))
+        await wait_for_element(driver, ec.title_is("Sign In"))
         try:
             logging.info("Signing in as %s", user)
-            username = WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.ID, 'userNameInput'))
+            username = await wait_for_element(driver, lambda d: d.find_element(By.ID, 'userNameInput'))
             username.send_keys(user)
             driver.find_element(By.ID, 'nextButton').click()
-            password = WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.ID, 'passwordInput'))
+            password = await wait_for_element(driver, lambda d: d.find_element(By.ID, 'passwordInput'))
             password.send_keys(credentials)
             driver.find_element(By.ID, 'submitButton').click()
         except (TimeoutException, ElementNotInteractableException) as e:
@@ -156,13 +153,13 @@ def sign_in(user: str, credentials: str, remember_me: bool) -> [str, str]:
         logging.info("DUO Auth passed by cookie")
         return [token, '']
     else:
-        WebDriverWait(driver, timeout=10).until(ec.presence_of_element_located((By.CLASS_NAME, "verification-code")))
+        await wait_for_element(driver, ec.presence_of_element_located((By.CLASS_NAME, "verification-code")))
         duo_auth_code = driver.find_element(By.CLASS_NAME, 'verification-code').text
         logging.info(f"Parsed DUO Auth code: {duo_auth_code}")
         return [token, duo_auth_code]
 
 
-def duo_auth(token: str, remember_me: bool) -> None:
+async def duo_auth(token: str, remember_me: bool) -> None:
     """
     Completes duo auth login step
     :param token: User token
@@ -172,13 +169,14 @@ def duo_auth(token: str, remember_me: bool) -> None:
     driver = common.driver_list[token]
     logging.info("DUO Auth required. Waiting for user interaction...")
     try:
-        wait = WebDriverWait(driver, timeout=120)
         if remember_me:
-            wait.until(ec.element_to_be_clickable((By.ID, "trust-browser-button"))).click()
+            (await wait_for_element(driver,
+                                    ec.element_to_be_clickable((By.ID, "trust-browser-button")), 120)).click()
         else:
-            wait.until(ec.element_to_be_clickable((By.ID, "dont-trust-browser-button"))).click()
+            (await wait_for_element(driver,
+                                    ec.element_to_be_clickable((By.ID, "dont-trust-browser-button")), 120)).click()
         # wait until duo auth is passed
-        WebDriverWait(driver, timeout=60).until(ec.title_is("Homepage"))
+        await wait_for_element(driver, ec.title_is("Homepage"), timeout=60)
         logging.info("Sign in successful for %s", token)
 
         dump_cookies(token, driver.get_cookies())
