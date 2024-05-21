@@ -1,11 +1,13 @@
 import logging
 
-from fastapi import HTTPException
+import websockets.exceptions
+from websockets import exceptions
 
-from api.main import app
+import api.main
+from api import main
 
 
-@app.exception_handler(Exception)
-async def exception_callback(exc: Exception):
-    logging.exception(exc)
-    raise HTTPException(status_code=500, detail="Internal server error")
+# @main.exception_handler(Exception)
+# async def exception_callback(exc: Exception):
+#     logging.exception(exc)
+#     raise websockets.exceptions.WebSocketException("Internal server error")
