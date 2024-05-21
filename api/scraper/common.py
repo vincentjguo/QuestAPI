@@ -13,6 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 driver_list: {str, WebDriver} = {}
 # {username : token}
 known_users = {}
+webdriver_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="webdriver_wait")
 
 
 def verify_signed_on(token: str) -> bool:
@@ -74,7 +75,6 @@ async def wait_for_element(driver, func, timeout=10) -> WebElement:
     :param timeout: time to wait
     :return: WebElement
     """
-    executor = concurrent.futures.ThreadPoolExecutor(1)
 
-    return await asyncio.get_running_loop().run_in_executor(executor,
+    return await asyncio.get_running_loop().run_in_executor(webdriver_executor,
                                                             WebDriverWait(driver, timeout).until, func)
