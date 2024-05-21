@@ -1,13 +1,19 @@
+import asyncio
+import concurrent.futures
 import logging
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.edge.webdriver import WebDriver
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 
-driver_list = {}
+driver_list: {str, WebDriver} = {}
+# {username : token}
 known_users = {}
+webdriver_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="webdriver_wait")
 
 
 def verify_signed_on(token: str) -> bool:
@@ -27,7 +33,7 @@ def verify_signed_on(token: str) -> bool:
         return False
 
 
-def verify_correct_page(title: str, driver: webdriver) -> None:
+async def verify_correct_page(title: str, driver: webdriver) -> None:
     """
     Verifies if page is correct, if not navigates to correct page
     :param title: title of page
@@ -42,8 +48,8 @@ def verify_correct_page(title: str, driver: webdriver) -> None:
             driver.find_element(By.ID, "PT_WORK_PT_BUTTON_BACK").click()
 
         logging.info("Navigating to page %s...", title)
-        WebDriverWait(driver, timeout=10).until(EC.title_is("Homepage"))
-        WebDriverWait(driver, timeout=10).until(lambda d: d.find_element(By.XPATH, f"//span[.='{title}']")).click()
+        await wait_for_element(driver, ec.title_is("Homepage"))
+        await wait_for_element(driver, lambda d: d.find_element(By.XPATH, f"//span[.='{title}']")).click()
     except (TimeoutException, NoSuchElementException):
         logging.exception("Could not navigate to page %s, possible sign out for user %s?", title, driver.title)
 
@@ -59,3 +65,16 @@ def delete_session(token: str) -> None:
     driver_list[token].quit()
     del driver_list[token]
     logging.info("Driver removed for %s", token)
+
+
+async def wait_for_element(driver, func, timeout=10) -> WebElement:
+    """
+    Waits for element to be present
+    :param driver: driver instance
+    :param func: function to find element
+    :param timeout: time to wait
+    :return: WebElement
+    """
+
+    return await asyncio.get_running_loop().run_in_executor(webdriver_executor,
+                                                            WebDriverWait(driver, timeout).until, func)
