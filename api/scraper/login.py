@@ -58,13 +58,12 @@ def ini_driver(token: str, remember_me: bool) -> WebDriver:
     else:
         options.add_argument(f"user-data-dir={PROFILE_PATH}/{token}")
     options.add_experimental_option("detach", True)
-    # options.add_argument("--headless=new")
+    options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    # """
     # options.add_argument("--remote-debugging-port=0")
     # options.binary_location = "/usr/bin/microsoft-edge-stable"
-    # s = service.Service(executable_path='api/msedgedriver')"""
+    # s = service.Service(executable_path='api/msedgedriver')
     driver = WebDriver(options=options)
     driver_list[token] = driver
     driver.set_window_size(1920, 1080)

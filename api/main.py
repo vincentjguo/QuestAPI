@@ -7,12 +7,12 @@ import websockets
 from api.scraper import login, common
 from api.websocket import connect
 
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 
 async def websocket():
     try:
-        async with websockets.serve(connect, "localhost", 8765):
+        async with websockets.serve(connect, "localhost", 4444):
             await asyncio.Future()  # run forever
     except (KeyboardInterrupt, CancelledError) as e:
         logging.info("Shutting down server...")
