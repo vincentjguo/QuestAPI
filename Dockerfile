@@ -53,5 +53,10 @@ RUN mkdir profiles
 # Expose the port that the application listens on.
 EXPOSE 4444
 
+# Set environment variables.
+ENV CERT_PATH=""
+ENV KEY_PATH=""
+ENV DEBUG="False"
+
 # Run the application.
 CMD ["python", "-m", "api.main"]
