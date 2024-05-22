@@ -52,4 +52,4 @@ COPY ./api /code/api
 EXPOSE 4444
 
 # Run the application.
-CMD ["uvicorn", "api.main:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "4444"]
+CMD ["python", "./main.py"]
