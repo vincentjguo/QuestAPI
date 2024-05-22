@@ -54,4 +54,4 @@ RUN mkdir profiles
 EXPOSE 4444
 
 # Run the application.
-RUN python api.main
+RUN python -m api.main
