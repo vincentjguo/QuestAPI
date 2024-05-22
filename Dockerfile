@@ -54,4 +54,4 @@ RUN mkdir profiles
 EXPOSE 4444
 
 # Run the application.
-CMD ["python", "./main.py"]
+RUN python ./main.py
