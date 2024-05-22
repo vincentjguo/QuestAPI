@@ -43,10 +43,10 @@ RUN wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-st
 
 RUN apt install -y ./microsoft-edge-stable_117.0.2045.55-1_amd64.deb
 
-ENV PATH="msedgedriver:${PATH}"
-
 # Copy the source code into the container.
-COPY ./api /code/api
+COPY . /code
+
+ENV PATH="/code/msedgedriver:${PATH}"
 
 RUN mkdir profiles
 
