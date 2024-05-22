@@ -16,7 +16,8 @@ async def websocket():
             await asyncio.Future()  # run forever
     except (KeyboardInterrupt, CancelledError) as e:
         logging.info("Shutting down server...")
-        for user in common.known_users.values():
+        tokens = common.known_users.values()
+        for user in tokens:
             login.sign_out(user)
 
 

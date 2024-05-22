@@ -15,7 +15,7 @@ from .common import delete_session, driver_list, wait_for_element
 
 URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL"
 DUMMY_URL = "https://quest.pecs.uwaterloo.ca/nonexistent"
-PROFILE_PATH = f"{pathlib.Path(__file__).parent.parent}/profiles"
+PROFILE_PATH = f"{pathlib.Path().cwd()}/profiles"
 
 
 class UserAuthenticationException(Exception):

@@ -48,12 +48,10 @@ ENV PATH="msedgedriver:${PATH}"
 # Copy the source code into the container.
 COPY ./api /code/api
 
-WORKDIR /code/api
-
 RUN mkdir profiles
 
 # Expose the port that the application listens on.
 EXPOSE 4444
 
 # Run the application.
-RUN python ./main.py
+RUN python api.main
