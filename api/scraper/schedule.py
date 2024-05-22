@@ -1,7 +1,6 @@
 import logging
 import time
 
-from fastapi import HTTPException
 from selenium.common import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec

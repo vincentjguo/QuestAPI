@@ -4,8 +4,8 @@ from asyncio import CancelledError
 
 import websockets
 
-from api.scraper import login, common
-from api.websocket import connect
+from .scraper import login, common
+from .websocket import connect
 
 LOG_LEVEL = logging.INFO
 

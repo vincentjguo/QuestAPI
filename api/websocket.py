@@ -7,8 +7,8 @@ from enum import IntEnum
 import selenium.common
 import websockets
 
-from api.scraper import login, schedule, common
-from api.scraper.schedule import ScheduleException
+from .scraper import login, schedule, common
+from .scraper.schedule import ScheduleException
 
 BPM = 1
 WEBSOCKET_TIMEOUT = 3
