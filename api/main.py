@@ -15,7 +15,7 @@ LOG_LEVEL = logging.INFO
 
 async def websocket():
     try:
-        async with websockets.serve(connect, "localhost", 4444):
+        async with websockets.serve(connect, "0.0.0.0", 4444):
             await asyncio.Future()  # run forever
     except (KeyboardInterrupt, CancelledError) as e:
         logging.info("Shutting down server...")
