@@ -29,8 +29,8 @@ def load_cert(cert_path: str, key_path: str):
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     try:
         ssl_context.load_cert_chain(cert_path, key_path)
-    except FileNotFoundError:
-        logging.error("Certificate or key file not found")
+    except FileNotFoundError as e:
+        logging.error("Certificate or key file not found: %s", e)
         exit(1)
 
 
@@ -47,6 +47,6 @@ if __name__ == "__main__":
                'message)s',
         level=LOG_LEVEL)
     if cert_path != "" and key_path != "":
+        logging.info("Picked up certificate path %s and key %s", cert_path, key_path)
         load_cert(cert_path, key_path)
-        logging.info("Picked up certificate from %s and key from %s", cert_path, key_path)
     asyncio.run(websocket())
