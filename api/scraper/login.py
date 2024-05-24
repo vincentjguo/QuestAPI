@@ -1,7 +1,6 @@
 import logging
 import pathlib
 import pickle
-import secrets
 import shutil
 
 from selenium import webdriver
@@ -12,6 +11,7 @@ from selenium.webdriver.support import expected_conditions as ec
 
 from . import common
 from .common import delete_session, driver_list, wait_for_element
+from ..token_manager import TokenManager
 
 URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL"
 DUMMY_URL = "https://quest.pecs.uwaterloo.ca/nonexistent"
@@ -19,19 +19,11 @@ PROFILE_PATH = f"{pathlib.Path().cwd()}/profiles"
 
 
 class UserAuthenticationException(Exception):
-    token: str
+    token: TokenManager
 
     def __init__(self, message, token):
         super().__init__(message)
         self.token = token
-
-
-def create_token() -> str:
-    """
-    Creates a new token for user
-    :return: token
-    """
-    return secrets.token_urlsafe(16)
 
 
 def dump_cookies(token: str, cookies: dict) -> None:
@@ -91,7 +83,7 @@ def load_cookies(token: str) -> None:
         common.driver_list[token].add_cookie(cookie)
 
 
-def recreate_session(token: str) -> None:
+def recreate_session(token: TokenManager) -> None:
     """
     Recreates session for user
     :param token: token of user
@@ -100,18 +92,19 @@ def recreate_session(token: str) -> None:
         driver = common.driver_list[token]
     else:
         logging.info("Recreating session for %s", token)
-        driver = ini_driver(token, True)
+        driver = ini_driver(token.get_token(), True)
 
-    load_cookies(token)
+    load_cookies(token.get_token())
     driver.get(URL)
 
-    if not common.verify_signed_on(token):
+    if not common.verify_signed_on(token.get_token()):
         raise UserAuthenticationException("Session expired, sign in again", token)
 
 
-async def sign_in(user: str, credentials: str, remember_me: bool) -> [str, str]:
+async def sign_in(user: str, credentials: str, remember_me: bool, token: TokenManager) -> str | None:
     """
     Sign in user and creates new driver instance if new user
+    :param token: TokenManager of a user's token
     :param user: uWaterloo email
     :param credentials: password
     :param remember_me: if session should be persistent
@@ -119,15 +112,14 @@ async def sign_in(user: str, credentials: str, remember_me: bool) -> [str, str]:
     """
     if user in common.known_users:
         logging.info("User %s already assigned token %s", user, common.known_users[user])
-        token = common.known_users[user]
+        token.create_from_existing_user(user)
         recreate_session(token)
-        return [token, '']
+        return None
 
-    token = create_token()
     if remember_me:
-        common.known_users[user] = token
+        common.known_users[user] = token.get_token()
 
-    driver = ini_driver(token, remember_me)
+    driver = ini_driver(token.get_token(), remember_me)
 
     # navigate to sign in form
     driver.get(URL)
@@ -150,22 +142,22 @@ async def sign_in(user: str, credentials: str, remember_me: bool) -> [str, str]:
 
     if driver.title == "Homepage":  # already signed in
         logging.info("DUO Auth passed by cookie")
-        return [token, '']
-    else:
+        return None
+    else:  # begin duo auth flow
         await wait_for_element(driver, ec.presence_of_element_located((By.CLASS_NAME, "verification-code")))
         duo_auth_code = driver.find_element(By.CLASS_NAME, 'verification-code').text
         logging.info(f"Parsed DUO Auth code: {duo_auth_code}")
-        return [token, duo_auth_code]
+        return duo_auth_code
 
 
-async def duo_auth(token: str, remember_me: bool) -> None:
+async def duo_auth(token: TokenManager, remember_me: bool) -> None:
     """
     Completes duo auth login step
     :param token: User token
     :param remember_me: If user should be remembered
     :return: None
     """
-    driver = common.driver_list[token]
+    driver = common.driver_list[token.get_token()]
     logging.info("DUO Auth required. Waiting for user interaction...")
     try:
         if remember_me:
@@ -176,9 +168,9 @@ async def duo_auth(token: str, remember_me: bool) -> None:
                                     ec.element_to_be_clickable((By.ID, "dont-trust-browser-button")), 120)).click()
         # wait until duo auth is passed
         await wait_for_element(driver, ec.title_is("Homepage"), timeout=60)
-        logging.info("Sign in successful for %s", token)
+        logging.info("Sign in successful for %s", token.get_token())
 
-        dump_cookies(token, driver.get_cookies())
+        dump_cookies(token.get_token(), driver.get_cookies())
     except TimeoutException:
         logging.error("Duo Auth timed out")
         raise UserAuthenticationException("Duo Auth timed out", token)

@@ -18,8 +18,8 @@ async def websocket():
     except (KeyboardInterrupt, CancelledError):
         logging.info("Shutting down server...")
         tokens = common.known_users.values()
-        for user in tokens:
-            login.sign_out(user)
+        for token in tokens:
+            login.delete_session(token)
 
 
 if __name__ == "__main__":

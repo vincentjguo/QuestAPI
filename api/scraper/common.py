@@ -59,7 +59,7 @@ def delete_session(token: str) -> None:
     Deletes session
     :param token: token of user
     """
-    if token not in driver_list and token is not None:
+    if token not in driver_list and token != '':
         logging.debug("No driver found for %s. Ignoring...", token)
         return
     driver_list[token].quit()

@@ -9,6 +9,7 @@ import websockets
 
 from .scraper import login, schedule, common
 from .scraper.schedule import ScheduleException
+from .token_manager import TokenManager
 
 BPM = 1
 WEBSOCKET_TIMEOUT = 3
@@ -44,44 +45,41 @@ async def send_websocket_response(websocket: websockets.WebSocketServerProtocol,
     ))
 
 
-async def reconnect_user(websocket) -> str:
+async def reconnect_user(websocket: websockets.WebSocketServerProtocol, token: TokenManager) -> None:
     try:
-        token = await asyncio.wait_for(websocket.recv(), timeout=3)
+        token.set_token(await asyncio.wait_for(websocket.recv(), timeout=3))
     except asyncio.TimeoutError:
         logging.warning("No token provided")
         raise websockets.exceptions.SecurityError("No token provided")
 
-    if token not in common.known_users.values():
+    if not token.verify_token():
         logging.error("Unauthorized token %s", token)
         raise websockets.exceptions.SecurityError("Invalid token")
 
     try:
         login.recreate_session(token)
-        await send_websocket_response(websocket, WebsocketResponseCode.SUCCESS, token)
+        await send_websocket_response(websocket, WebsocketResponseCode.SUCCESS, token.get_token())
     except login.UserAuthenticationException as e:
-        handle_sign_out(e.token)
+        handle_sign_out(e.token.get_token())
         raise websockets.exceptions.SecurityError(e)
 
-    logging.info(f"Session created for {token}")
-    return token
+    logging.info(f"Session created for {token.get_token()}")
 
 
-async def create_user(websocket) -> str:
+async def create_user(websocket: websockets.WebSocketServerProtocol, token: TokenManager) -> None:
     user = await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT)
     credentials = await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT)
     remember_me = True if await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT) else False
     try:
-        token, duo_auth_code = await login.sign_in(user, credentials, remember_me)
+        duo_auth_code = await login.sign_in(user, credentials, remember_me, token)
         if duo_auth_code is not None:
             await send_websocket_response(websocket, WebsocketResponseCode.PARTIAL_SUCCESS, duo_auth_code)
             await login.duo_auth(token, remember_me)
 
-        await send_websocket_response(websocket, WebsocketResponseCode.SUCCESS, token)
+        await send_websocket_response(websocket, WebsocketResponseCode.SUCCESS, token.get_token())
     except login.UserAuthenticationException as e:
-        handle_sign_out(e.token)
+        handle_sign_out(e.token.get_token())
         raise websockets.exceptions.SecurityError(e)
-
-    return token
 
 
 async def handle_search_classes(websocket, token) -> None:
@@ -106,7 +104,7 @@ def handle_sign_out(token) -> str:
     return login.sign_out(token)
 
 
-async def process_requests(websocket, token):
+async def process_requests(websocket: websockets.WebSocketServerProtocol, token: str):
     try:
         while True:
             message = await websocket.recv()
@@ -122,7 +120,6 @@ async def process_requests(websocket, token):
                     raise CancelledError("User signed out")
                 case "QUIT":
                     logging.info("Quit received for user %s", token)
-                    common.delete_session(token)
                     await websocket.close()
                     raise CancelledError("User quit")
                 case _:
@@ -150,53 +147,52 @@ async def heartbeat(token: str):
         return
 
 
+async def begin_connection_loop(websocket: websockets.WebSocketServerProtocol, token: TokenManager):
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(process_requests(websocket, token.get_token()), name=f'{token.get_token()}-process'),
+                tg.create_task(heartbeat(token.get_token()), name=f'{token.get_token()}-heartbeat')
+            ]
+            finished, unfinished = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in unfinished:
+                task.cancel()
+                await task
+    except ExceptionGroup as e:
+        logging.exception(e)
+        raise e.exceptions[0]
+    logging.info("Connection loop closed. Bye bye")
+
+
 async def connect(websocket: websockets.WebSocketServerProtocol, path: str):
     logging.debug(path)
-    token = ''
     try:
-        if path == '/reconnect':
-            logging.info("Received reconnect request")
-            token = await reconnect_user(websocket)
-        elif path == '/login':
-            logging.info("Received login request")
-            token = await create_user(websocket)
-        else:
-            logging.warning("Invalid path")
-            await websocket.close(code=1002, reason="Invalid path")
-            return
+        with TokenManager() as token:
+            if path == '/reconnect':
+                logging.info("Received reconnect request")
+                await reconnect_user(websocket, token)
+            elif path == '/login':
+                logging.info("Received login request")
+                await create_user(websocket, token)
+            else:
+                logging.warning("Invalid path")
+                await websocket.close(code=1002, reason="Invalid path")
+                return
 
-        try:
-            async with asyncio.TaskGroup() as tg:
-                tasks = [
-                    tg.create_task(process_requests(websocket, token), name=f'{token}-process'),
-                    tg.create_task(heartbeat(token), name=f'{token}-heartbeat')
-                ]
-                finished, unfinished = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-                for task in unfinished:
-                    task.cancel()
-                    await task
-        except ExceptionGroup as e:
-            logging.exception(e)
-            raise e.exceptions[0]
-
-        logging.info("Connection loop closed. Bye bye")
+            await begin_connection_loop(websocket, token)
 
     except websockets.exceptions.SecurityError as e:
-        logging.info(f"Closing connection because of authentication error: {e}")
-        login.sign_out(token)
+        logging.warning(f"Closing connection because of authentication error: {e}")
         await websocket.close(code=1002, reason=str(e))
         return
     except websockets.exceptions.ConnectionClosed as e:
         logging.warning(f"Connection closed unexpectedly: {e}")
-        common.delete_session(token)
         return
     except TimeoutError:
         logging.warning("Response timed out")
-        common.delete_session(token)
         await websocket.close(code=1002, reason="Response timed out")
         return
     except Exception as e:
         logging.exception(e)
-        common.delete_session(token)
         await websocket.close(code=1011, reason="Internal server error")
         return
