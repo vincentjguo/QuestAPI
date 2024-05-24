@@ -1,8 +1,6 @@
-import argparse
 import asyncio
 import logging
 import os
-import ssl
 from asyncio import CancelledError
 
 import websockets
@@ -17,7 +15,7 @@ async def websocket():
     try:
         async with websockets.serve(connect, "0.0.0.0", 4444):
             await asyncio.Future()  # run forever
-    except (KeyboardInterrupt, CancelledError) as e:
+    except (KeyboardInterrupt, CancelledError):
         logging.info("Shutting down server...")
         tokens = common.known_users.values()
         for user in tokens:

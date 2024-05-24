@@ -49,7 +49,7 @@ async def verify_correct_page(title: str, driver: webdriver) -> None:
 
         logging.info("Navigating to page %s...", title)
         await wait_for_element(driver, ec.title_is("Homepage"))
-        await wait_for_element(driver, lambda d: d.find_element(By.XPATH, f"//span[.='{title}']")).click()
+        (await wait_for_element(driver, lambda d: d.find_element(By.XPATH, f"//span[.='{title}']"))).click()
     except (TimeoutException, NoSuchElementException):
         logging.exception("Could not navigate to page %s, possible sign out for user %s?", title, driver.title)
 
