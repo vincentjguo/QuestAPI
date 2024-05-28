@@ -169,8 +169,8 @@ async def duo_auth(token: TokenManager, remember_me: bool) -> None:
         # wait until duo auth is passed
         await wait_for_element(driver, ec.title_is("Homepage"), timeout=60)
         logging.info("Sign in successful for %s", token.get_token())
-
-        dump_cookies(token.get_token(), driver.get_cookies())
+        if remember_me:
+            dump_cookies(token.get_token(), driver.get_cookies())
     except TimeoutException:
         logging.error("Duo Auth timed out")
         raise UserAuthenticationException("Duo Auth timed out", token)
