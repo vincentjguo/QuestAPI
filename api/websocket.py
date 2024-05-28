@@ -69,7 +69,7 @@ async def reconnect_user(websocket: websockets.WebSocketServerProtocol, token: T
 async def create_user(websocket: websockets.WebSocketServerProtocol, token: TokenManager) -> None:
     user = await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT)
     credentials = await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT)
-    remember_me = True if await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT) else False
+    remember_me = True if await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT) == "true" else False
     try:
         duo_auth_code = await login.sign_in(user, credentials, remember_me, token)
         if duo_auth_code is not None:
@@ -159,7 +159,7 @@ async def begin_connection_loop(websocket: websockets.WebSocketServerProtocol, t
                 task.cancel()
                 await task
     except ExceptionGroup as e:
-        logging.exception(e)
+        logging.debug(e)
         raise e.exceptions[0]
     logging.info("Connection loop closed. Bye bye")
 
