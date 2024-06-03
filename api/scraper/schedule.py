@@ -15,7 +15,7 @@ class ScheduleException(Exception):
         super().__init__(message)
 
 
-async def search_classes(term, subject, number, token) -> dict:
+async def search_classes(term: str, subject: str, number: str, token: str) -> dict:
     """
     Searches for classes
     :param term:
@@ -34,7 +34,7 @@ async def search_classes(term, subject, number, token) -> dict:
 
         driver.find_element(By.CSS_SELECTOR, "#PSTAB > table > tbody > tr > td:nth-child(3) > a").click()
         time.sleep(1)
-        Select(driver.find_element(By.CSS_SELECTOR, r"#CLASS_SRCH_WRK2_STRM\$35\$")).select_by_visible_text(term)
+        Select(driver.find_element(By.CSS_SELECTOR, r"#CLASS_SRCH_WRK2_STRM\$35\$")).select_by_value(term)
         time.sleep(1)
         driver.find_element(By.CSS_SELECTOR, r"#SSR_CLSRCH_WRK_SUBJECT\$0").send_keys(subject)
         time.sleep(1)
