@@ -17,6 +17,8 @@ URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LAN
 DUMMY_URL = "https://quest.pecs.uwaterloo.ca/nonexistent"
 PROFILE_PATH = f"{pathlib.Path().cwd()}/profiles"
 
+DUO_AUTH_TIMEOUT = 60
+
 
 class UserAuthenticationException(Exception):
     token: TokenManager
@@ -162,10 +164,10 @@ async def duo_auth(token: TokenManager, remember_me: bool) -> None:
     try:
         if remember_me:
             (await wait_for_element(driver,
-                                    ec.element_to_be_clickable((By.ID, "trust-browser-button")), 120)).click()
+                                    ec.element_to_be_clickable((By.ID, "trust-browser-button")), DUO_AUTH_TIMEOUT)).click()
         else:
             (await wait_for_element(driver,
-                                    ec.element_to_be_clickable((By.ID, "dont-trust-browser-button")), 120)).click()
+                                    ec.element_to_be_clickable((By.ID, "dont-trust-browser-button")), DUO_AUTH_TIMEOUT)).click()
         # wait until duo auth is passed
         await wait_for_element(driver, ec.title_is("Homepage"), timeout=60)
         logging.info("Sign in successful for %s", token.get_token())
