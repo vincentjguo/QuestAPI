@@ -33,20 +33,15 @@ async def search_classes(term: str, subject: str, number: str, token: str) -> di
             await wait_for_element(driver, lambda d: d.find_element(By.CSS_SELECTOR, "#main_target_win0")))
 
         driver.find_element(By.CSS_SELECTOR, "#PSTAB > table > tbody > tr > td:nth-child(3) > a").click()
-        time.sleep(1)
         driver.find_element(By.CSS_SELECTOR, r"#CLASS_SRCH_WRK2_STRM\$35\$").select_by_value(term)
-        time.sleep(1)
         driver.find_element(By.CSS_SELECTOR, r"#SSR_CLSRCH_WRK_SUBJECT\$0").send_keys(subject)
-        time.sleep(1)
         driver.find_element(By.CSS_SELECTOR, r"#SSR_CLSRCH_WRK_CATALOG_NBR\$1").send_keys(number)
-        time.sleep(1)
         driver.find_element(By.CSS_SELECTOR, r"#SSR_CLSRCH_WRK_SSR_OPEN_ONLY\$3").click()
-        time.sleep(1)
 
         driver.find_element(By.CSS_SELECTOR, "#CLASS_SRCH_WRK2_SSR_PB_CLASS_SRCH").click()
         await wait_for_element(driver,
                                ec.text_to_be_present_in_element((By.ID, "DERIVED_REGFRM1_TITLE1"), "Search Results"))
-    except TimeoutException | NoSuchElementException as e:
+    except (TimeoutException, NoSuchElementException) as e:
         logging.error("Search failed for %s %s %s", term, subject, number)
         logging.debug(e)
         raise ScheduleException("No results found")
