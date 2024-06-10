@@ -47,14 +47,9 @@ async def search_classes(term: str, subject: str, number: str, token: str) -> di
         await wait_for_element(driver,
                                ec.text_to_be_present_in_element((By.ID, "DERIVED_REGFRM1_TITLE1"), "Search Results"))
     except TimeoutException as e:
-        if (driver.find_element(
-                By.ID,
-                "DERIVED_CLSMSG_ERROR_TEXT").text == "The search returns no results that match the criteria specified."):
-            logging.error("No results found for %s %s %s", term, subject, number)
-            raise ScheduleException("No results found")
-        else:
-            logging.exception(e)
-            raise ScheduleException("Search failed unexpectedly")
+        logging.error("Search failed for %s %s %s", term, subject, number)
+        logging.debug(e)
+        raise ScheduleException("No results found")
 
     table = driver.find_element(By.CSS_SELECTOR, r"#ACE_\$ICField48\$0 > tbody")
     num_of_rows = round(len(driver.find_elements(By.CSS_SELECTOR, r"#ACE_\$ICField48\$0 > tbody > tr")) / 2)
