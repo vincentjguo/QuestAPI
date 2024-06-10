@@ -1,7 +1,7 @@
 import logging
 import time
 
-from selenium.common import TimeoutException
+from selenium.common import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import Select
@@ -34,7 +34,7 @@ async def search_classes(term: str, subject: str, number: str, token: str) -> di
 
         driver.find_element(By.CSS_SELECTOR, "#PSTAB > table > tbody > tr > td:nth-child(3) > a").click()
         time.sleep(1)
-        Select(driver.find_element(By.CSS_SELECTOR, r"#CLASS_SRCH_WRK2_STRM\$35\$")).select_by_value(term)
+        driver.find_element(By.CSS_SELECTOR, r"#CLASS_SRCH_WRK2_STRM\$35\$").select_by_value(term)
         time.sleep(1)
         driver.find_element(By.CSS_SELECTOR, r"#SSR_CLSRCH_WRK_SUBJECT\$0").send_keys(subject)
         time.sleep(1)
@@ -46,7 +46,7 @@ async def search_classes(term: str, subject: str, number: str, token: str) -> di
         driver.find_element(By.CSS_SELECTOR, "#CLASS_SRCH_WRK2_SSR_PB_CLASS_SRCH").click()
         await wait_for_element(driver,
                                ec.text_to_be_present_in_element((By.ID, "DERIVED_REGFRM1_TITLE1"), "Search Results"))
-    except TimeoutException as e:
+    except TimeoutException | NoSuchElementException as e:
         logging.error("Search failed for %s %s %s", term, subject, number)
         logging.debug(e)
         raise ScheduleException("No results found")

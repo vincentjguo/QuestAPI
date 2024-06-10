@@ -10,10 +10,9 @@ from selenium.webdriver.edge.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as ec
 
 from . import common
-from .common import delete_session, driver_list, wait_for_element
+from .common import delete_session, driver_list, wait_for_element, URL
 from ..token_manager import TokenManager
 
-URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL"
 DUMMY_URL = "https://quest.pecs.uwaterloo.ca/nonexistent"
 PROFILE_PATH = f"{pathlib.Path().cwd()}/profiles"
 

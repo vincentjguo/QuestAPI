@@ -15,6 +15,8 @@ driver_list: {str, WebDriver} = {}
 known_users = {}
 webdriver_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="webdriver_wait")
 
+URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL"
+
 
 def verify_signed_on(token: str) -> bool:
     """
@@ -45,13 +47,13 @@ async def verify_correct_page(title: str, driver: webdriver) -> None:
             logging.info("Already on page, continuing...")
         elif driver.title != "Homepage":
             logging.info("Navigating to homepage")
-            driver.find_element(By.ID, "PT_WORK_PT_BUTTON_BACK").click()
+            driver.get(URL)
 
         logging.info("Navigating to page %s...", title)
         await wait_for_element(driver, ec.title_is("Homepage"))
         (await wait_for_element(driver, lambda d: d.find_element(By.XPATH, f"//span[.='{title}']"))).click()
     except (TimeoutException, NoSuchElementException):
-        logging.exception("Could not navigate to page %s, possible sign out for user %s?", title, driver.title)
+        logging.exception("Could not navigate to page %s, possible sign out for user?", title)
 
 
 def delete_session(token: str) -> None:
@@ -78,3 +80,4 @@ async def wait_for_element(driver, func, timeout=10) -> WebElement:
 
     return await asyncio.get_running_loop().run_in_executor(webdriver_executor,
                                                             WebDriverWait(driver, timeout).until, func)
+
