@@ -1,5 +1,4 @@
 import logging
-import time
 
 from selenium.common import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.by import By
@@ -8,6 +7,7 @@ from selenium.webdriver.support.ui import Select
 
 from . import common
 from .common import driver_list, wait_for_element
+from api.database.models.course_info_model import Course, Section
 
 
 class ScheduleException(Exception):
@@ -15,7 +15,7 @@ class ScheduleException(Exception):
         super().__init__(message)
 
 
-async def search_classes(term: str, subject: str, number: str, token: str) -> dict:
+async def search_classes(term: str, subject: str, number: str, token: str) -> Course:
     """
     Searches for classes
     :param term:
@@ -24,6 +24,8 @@ async def search_classes(term: str, subject: str, number: str, token: str) -> di
     :param token:
     :return:
     """
+    course = Course(term, subject, number)
+
     driver = driver_list[token]
     await common.verify_correct_page("Class Schedule", driver)
 
@@ -50,16 +52,13 @@ async def search_classes(term: str, subject: str, number: str, token: str) -> di
     num_of_rows = round(len(driver.find_elements(By.CSS_SELECTOR, r"#ACE_\$ICField48\$0 > tbody > tr")) / 2)
     logging.info("Found %s sections", num_of_rows)
 
-    data = {}
-
     for i in range(num_of_rows):
         section = table.find_element(By.ID, f"MTG_CLASSNAME\\${i}").text.split("\n")[0].split("-")
+        course.add_section(
+            Section(section[1], section[0], table.find_element(By.ID, f"MTG_ROOM\\${i}").text,
+                    table.find_element(By.ID, f"MTG_INSTR\\${i}").text))
 
-        data[f"{section[1]} {section[0]}"] = [
-            table.find_element(By.ID, f"MTG_ROOM\\${i}").text,
-            table.find_element(By.ID, f"MTG_INSTR\\${i}").text]
-
-    logging.info("Aggregated data: %s", data)
+    logging.info("Aggregated data: %s", course)
 
     driver.switch_to.default_content()
-    return data
+    return course

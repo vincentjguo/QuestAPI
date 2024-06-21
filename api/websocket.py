@@ -7,6 +7,7 @@ from enum import IntEnum
 import selenium.common
 import websockets
 
+from .database import db
 from .scraper import login, schedule, common
 from .scraper.schedule import ScheduleException
 from .token_manager import TokenManager
@@ -82,13 +83,17 @@ async def create_user(websocket: websockets.WebSocketServerProtocol, token: Toke
         raise websockets.exceptions.SecurityError(e)
 
 
-async def handle_search_classes(websocket, token) -> None:
+async def handle_search_classes(websocket: websockets.WebSocketServerProtocol, token: str) -> None:
     term = await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT)
     subject = await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT)
     class_number = await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT)
     logging.info("Received search request for %s %s %s", term, subject, class_number)
     try:
-        result = await schedule.search_classes(term, subject, class_number, token)
+        result = db.get_course_info(term, subject, class_number)
+        if result is None:
+            logging.info("Course info not found in database. Searching...")
+            result = await schedule.search_classes(term, subject, class_number, token)
+            db.upsert_course_info(term, result)
     except selenium.common.WebDriverException as e:  # silently log error and continue
         logging.exception(e)
         await send_websocket_response(websocket, WebsocketResponseCode.ERROR, "Could not search classes")
@@ -97,14 +102,14 @@ async def handle_search_classes(websocket, token) -> None:
         await send_websocket_response(websocket, WebsocketResponseCode.ERROR, str(e))
         return
 
-    await send_websocket_response(websocket, WebsocketResponseCode.SUCCESS, str(result))
+    await send_websocket_response(websocket, WebsocketResponseCode.SUCCESS, str(result.get_sections()))
 
 
-def handle_sign_out(token) -> str:
+def handle_sign_out(token: str) -> str:
     return login.sign_out(token)
 
 
-async def process_requests(websocket: websockets.WebSocketServerProtocol, token: str):
+async def process_requests(websocket: websockets.WebSocketServerProtocol, token: str) -> None:
     try:
         while True:
             message = await websocket.recv()
