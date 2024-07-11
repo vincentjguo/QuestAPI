@@ -5,9 +5,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import Select
 
-from . import common
-from .common import driver_list, wait_for_element
 from api.database.models.course_info_model import Course, Section
+from .scraper import Scraper
 
 
 class ScheduleException(Exception):
@@ -15,24 +14,24 @@ class ScheduleException(Exception):
         super().__init__(message)
 
 
-async def search_classes(term: str, subject: str, number: str, token: str) -> Course:
+async def search_classes(scraper: Scraper, term: str, subject: str, number: str) -> Course:
     """
     Searches for classes
+    :param scraper:
     :param term:
     :param subject:
     :param number:
-    :param token:
     :return:
     """
     course = Course(term, subject, number)
 
-    driver = driver_list[token]
-    await common.verify_correct_page("Class Schedule", driver)
+    driver = scraper.driver
+    await scraper.verify_correct_page("Class Schedule")
 
     logging.info("Searching for %s %s %s", term, subject, number)
     try:
         driver.switch_to.frame(
-            await wait_for_element(driver, lambda d: d.find_element(By.CSS_SELECTOR, "#main_target_win0")))
+            await scraper.wait_for_element(lambda d: d.find_element(By.CSS_SELECTOR, "#main_target_win0")))
 
         driver.find_element(By.CSS_SELECTOR, "#PSTAB > table > tbody > tr > td:nth-child(3) > a").click()
         Select(driver.find_element(By.CSS_SELECTOR, r"#CLASS_SRCH_WRK2_STRM\$35\$")).select_by_value(term)
@@ -41,8 +40,9 @@ async def search_classes(term: str, subject: str, number: str, token: str) -> Co
         driver.find_element(By.CSS_SELECTOR, r"#SSR_CLSRCH_WRK_SSR_OPEN_ONLY\$3").click()
 
         driver.find_element(By.CSS_SELECTOR, "#CLASS_SRCH_WRK2_SSR_PB_CLASS_SRCH").click()
-        await wait_for_element(driver,
-                               ec.text_to_be_present_in_element((By.ID, "DERIVED_REGFRM1_TITLE1"), "Search Results"))
+        await scraper.wait_for_element(
+                               ec.text_to_be_present_in_element((By.ID, "DERIVED_REGFRM1_TITLE1"),
+                                                                "Search Results"))
     except (TimeoutException, NoSuchElementException) as e:
         logging.error("Search failed for %s %s %s", term, subject, number)
         logging.debug(e)

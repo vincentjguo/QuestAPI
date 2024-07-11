@@ -5,7 +5,7 @@ from asyncio import CancelledError
 
 import websockets
 
-from .scraper import login, common
+from .scraper import scraper, common
 from .websocket import connect
 
 LOG_LEVEL = logging.INFO

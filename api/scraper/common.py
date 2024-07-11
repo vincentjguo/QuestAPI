@@ -12,72 +12,18 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 driver_list: {str, WebDriver} = {}
 # {username : token}
-known_users = {}
+known_users: {str, str} = {}
+
 webdriver_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="webdriver_wait")
 
-URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL"
 
 
-def verify_signed_on(token: str) -> bool:
-    """
-    Verifies if user is signed in
-    :param token: token of user
-    :return: true if signed in, false if not
-    """
-    try:
-        driver_list[token].find_element(By.CSS_SELECTOR, "#PT_ACTION_MENU\\$PIMG")
-        return True
-    except NoSuchElementException:
-        logging.info("%s not signed in", token)
-        return False
-    except KeyError:
-        logging.info("No driver found for %s", token)
-        return False
 
 
-async def verify_correct_page(title: str, driver: webdriver) -> None:
-    """
-    Verifies if page is correct, if not navigates to correct page
-    :param title: title of page
-    :param driver: driver instance
-    """
-    try:
-        logging.info("Current page: %s", driver.title)
-        if driver.title == title:
-            logging.info("Already on page, continuing...")
-        elif driver.title != "Homepage":
-            logging.info("Navigating to homepage")
-            driver.get(URL)
-
-        logging.info("Navigating to page %s...", title)
-        await wait_for_element(driver, ec.title_is("Homepage"))
-        (await wait_for_element(driver, lambda d: d.find_element(By.XPATH, f"//span[.='{title}']"))).click()
-    except (TimeoutException, NoSuchElementException):
-        logging.exception("Could not navigate to page %s, possible sign out for user?", title)
 
 
-def delete_session(token: str) -> None:
-    """
-    Deletes session
-    :param token: token of user
-    """
-    if token not in driver_list and token != '':
-        logging.debug("No driver found for %s. Ignoring...", token)
-        return
-    driver_list[token].quit()
-    del driver_list[token]
-    logging.info("Driver removed for %s", token)
 
 
-async def wait_for_element(driver, func, timeout=10) -> WebElement:
-    """
-    Waits for element to be present
-    :param driver: driver instance
-    :param func: function to find element
-    :param timeout: time to wait
-    :return: WebElement
-    """
 
-    return await asyncio.get_running_loop().run_in_executor(webdriver_executor,
-                                                            WebDriverWait(driver, timeout).until, func)
+
 

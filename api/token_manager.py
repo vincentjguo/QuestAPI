@@ -6,7 +6,6 @@ from api.scraper.common import delete_session
 
 
 class TokenManager(ContextDecorator):
-    token: str
 
     def __enter__(self):
         return self
@@ -15,8 +14,8 @@ class TokenManager(ContextDecorator):
         delete_session(self.token)
         return False
 
-    def __init__(self):
-        self.token = secrets.token_urlsafe(16)
+    def __init__(self, token=secrets.token_urlsafe(16)):
+        self.token = token
 
     def __str__(self):
         return self.token
