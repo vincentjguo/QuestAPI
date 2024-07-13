@@ -38,6 +38,7 @@ class SessionManager(ContextDecorator):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        # TODO: Fix this for websocket close when user is still active on frontend
         if self.token not in known_users.values():  # if user is not remembered sign out everytime
             self.handle_sign_out()
         else:
@@ -49,9 +50,6 @@ class SessionManager(ContextDecorator):
 
     def __repr__(self):
         return self.token
-
-    def __del__(self):
-        self.remove_scraper()
 
     async def __heartbeat(self) -> None:
         """
@@ -90,11 +88,12 @@ class SessionManager(ContextDecorator):
 
     async def wake_scraper(self) -> None:
         if self.active:
-            self.logger.info("Scraper already active")
+            self.logger.debug("Scraper already active")
             return
 
-        self.logger.debug("Waking up scraper...")
-        await self.reconnect_user()
+        self.logger.info("Waking up scraper...")
+        self.create_scraper()
+        self.scraper.recreate_session()
 
     def create_scraper(self) -> None:
         """
@@ -115,7 +114,6 @@ class SessionManager(ContextDecorator):
         :return: the existing token used to reconnect
         :raises websockets.exceptions.SecurityError: invalid token
         """
-
         try:
             if self.token not in known_users.values():
                 self.logger.error("Unauthorized token %s", self.token)

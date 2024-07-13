@@ -46,7 +46,7 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 # Copy the source code into the container.
 COPY . /code
 
-ENV PATH="/code/msedgedriver:${PATH}"
+#ENV PATH="/code/msedgedriver:${PATH}"
 
 # Expose the port that the application listens on.
 EXPOSE 4444

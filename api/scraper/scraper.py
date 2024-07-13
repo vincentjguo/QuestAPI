@@ -13,6 +13,8 @@ from selenium.webdriver.edge.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.edge.service import Service as EdgeService
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
 from ..database import db
 
@@ -24,6 +26,7 @@ DUO_AUTH_TIMEOUT = 30
 
 
 webdriver_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="webdriver_wait")
+edge_service = EdgeService(EdgeChromiumDriverManager().install())
 
 
 class UserAuthenticationException(Exception):
@@ -79,7 +82,7 @@ class Scraper:
         # options.add_argument("--remote-debugging-port=0")
         # options.binary_location = "/usr/bin/microsoft-edge-stable"
         # s = service.Service(executable_path='api/msedgedriver')
-        driver = WebDriver(options=options)
+        driver = webdriver.Edge(service=edge_service, options=options)
         Scraper.driver_list[self.token] = driver
         driver.set_window_size(1920, 1080)
         self.logger.info("Driver created for %s", self.token)

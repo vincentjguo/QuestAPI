@@ -71,7 +71,7 @@ async def process_requests(websocket: websockets.WebSocketServerProtocol, sessio
                         logger.warning("Invalid request")
                         await send_websocket_response(websocket, WebsocketResponseCode.ERROR, "Invalid request")
                         continue
-            except SessionException as e:
+            except (SessionException, TimeoutError) as e:
                 await send_websocket_response(websocket, WebsocketResponseCode.ERROR, str(e))
     except asyncio.CancelledError:
         logger.debug("Request processing task cancelled")
