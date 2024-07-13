@@ -1,4 +1,5 @@
 import logging
+import os
 import sqlite3
 
 from sqlalchemy import create_engine
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload, sessionmaker
 
 from api.database.models.course_info_model import Course, Base, Term
 
-database = 'laminarflow.db'
+database = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'laminarflow.db')
 
 logger = logging.getLogger(__name__)
 sqlalchemy_logger = logging.getLogger('sqlalchemy.engine')
