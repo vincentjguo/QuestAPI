@@ -6,10 +6,11 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import Select
 
 from api.database.models.course_info_model import Course, Section
+from ..exceptions import SessionException
 from .scraper import Scraper
 
 
-class ScheduleException(Exception):
+class ScheduleException(SessionException):
     def __init__(self, message):
         super().__init__(message)
 

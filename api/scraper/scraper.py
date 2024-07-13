@@ -13,9 +13,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait
 
-from . import common
 from ..database import db
-from ..token_manager import TokenManager
 
 URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL"
 DUMMY_URL = "https://quest.pecs.uwaterloo.ca/nonexistent"
@@ -23,23 +21,24 @@ PROFILE_PATH = f"{pathlib.Path().cwd()}/profiles"
 
 DUO_AUTH_TIMEOUT = 60
 
-logger = logging.getLogger(__name__)
+
+webdriver_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="webdriver_wait")
 
 
 class UserAuthenticationException(Exception):
-    def __init__(self, message, token: TokenManager):
+    def __init__(self, message, token: str):
         super().__init__(message)
         self.token = token
 
 
 class Scraper:
     driver_list: {str, WebDriver} = {}
-    last_accessed: {'Scraper', datetime.datetime} = {}
 
-    def __init__(self, token: TokenManager):
+    def __init__(self, token: str):
+        self.logger = logging.getLogger("scraper[" + token + "]")
         self.token = token
         self.driver: WebDriver = self.__ini_driver()
-        self.active = True
+        self.last_accessed = datetime.datetime.now()
 
     def __dump_cookies(self, cookies: list[dict]) -> None:
         """
@@ -47,7 +46,7 @@ class Scraper:
         :param cookies: Dictionary of cookies
         :return: None
         """
-        db.save_cookies(self.token.get_token(), pickle.dumps(cookies))
+        db.save_cookies(self.token, pickle.dumps(cookies))
 
     def __load_cookies(self) -> None:
         """
@@ -55,14 +54,14 @@ class Scraper:
         :return: None
         """
         try:
-            cookies = pickle.loads(db.load_cookies(self.token.get_token()))
+            cookies = pickle.loads(db.load_cookies(self.token))
         except FileNotFoundError:
-            logger.warning("No cookies found for %s", self.token.get_token())
+            self.logger.warning("No cookies found for %s", self.token)
             return
         self.driver.get(DUMMY_URL)
         for cookie in cookies:
-            logger.debug("Adding cookie %s", cookie)
-            common.driver_list[self.token.get_token()].add_cookie(cookie)
+            self.logger.debug("Adding cookie %s", cookie)
+            Scraper.driver_list[self.token].add_cookie(cookie)
 
     def __ini_driver(self) -> WebDriver:
         """
@@ -82,9 +81,9 @@ class Scraper:
         # options.binary_location = "/usr/bin/microsoft-edge-stable"
         # s = service.Service(executable_path='api/msedgedriver')
         driver = WebDriver(options=options)
-        self.driver_list[self.token.get_token()] = driver
+        Scraper.driver_list[self.token] = driver
         driver.set_window_size(1920, 1080)
-        logger.info("Driver created for %s", self.token)
+        self.logger.info("Driver created for %s", self.token)
 
         return driver
 
@@ -92,11 +91,7 @@ class Scraper:
         """
         Refreshes idle timer or restarts session if already closed
         """
-        Scraper.last_accessed[self] = datetime.datetime.now()
-
-        if not self.active:
-            self.recreate_session()
-            self.active = True
+        self.last_accessed = datetime.datetime.now()
 
     def verify_signed_on(self) -> bool:
         """
@@ -104,13 +99,13 @@ class Scraper:
         :return: true if signed in, false if not
         """
         try:
-            self.driver_list[self.token.get_token()].find_element(By.CSS_SELECTOR, "#PT_ACTION_MENU\\$PIMG")
+            Scraper.driver_list[self.token].find_element(By.CSS_SELECTOR, "#PT_ACTION_MENU\\$PIMG")
             return True
         except NoSuchElementException:
-            logger.info("%s not signed in", self.token)
+            self.logger.info("%s not signed in", self.token)
             return False
         except KeyError:
-            logger.info("No driver found for %s", self.token)
+            self.logger.info("No driver found for %s", self.token)
             return False
 
     def recreate_session(self) -> 'Scraper':
@@ -118,10 +113,10 @@ class Scraper:
         Recreates session for user. Updates last accessed time
         """
         self.__idle_refresh()
-        if self.token in self.driver_list:
-            self.driver = self.driver_list[self.token]
+        if self.token in Scraper.driver_list:
+            self.driver = Scraper.driver_list[self.token]
         else:
-            logger.info("Recreating session for %s", self.token)
+            self.logger.info("Recreating session for %s", self.token)
 
         self.__load_cookies()
         self.driver.get(URL)
@@ -131,24 +126,14 @@ class Scraper:
 
         return self
 
-    async def sign_in(self, user: str, credentials: str, remember_me: bool) -> str | None:
+    async def sign_in(self, user: str, credentials: str) -> str | None:
         """
         Sign in user and creates new driver instance if new user. Updates last accessed time
         :param user: uWaterloo email
         :param credentials: password
-        :param remember_me: if session should be persistent
         :return: [token, duo_auth_code] duo_auth_code may be None if not required
         """
         self.__idle_refresh()
-        # TODO: keep known_users in common?
-        if user in common.known_users:
-            logger.info("User %s already assigned token %s", user, common.known_users[user])
-            self.token.create_from_existing_user(user)
-            self.recreate_session()
-            return None
-
-        if remember_me:
-            common.known_users[user] = self.token.get_token()
 
         # navigate to sign in form
         self.driver.get(URL)
@@ -156,7 +141,7 @@ class Scraper:
         try:
             await self.wait_for_element(ec.title_is("Sign In"))
             try:
-                logger.info("Signing in as %s", user)
+                self.logger.info("Signing in as %s", user)
                 username = await self.wait_for_element(lambda d: d.find_element(By.ID, 'userNameInput'))
                 username.send_keys(user)
                 self.driver.find_element(By.ID, 'nextButton').click()
@@ -164,19 +149,19 @@ class Scraper:
                 password.send_keys(credentials)
                 self.driver.find_element(By.ID, 'submitButton').click()
             except (TimeoutException, ElementNotInteractableException) as e:
-                logger.exception("Sign in failed for %s with %e", user, e)
+                self.logger.exception("Sign in failed for %s with %e", user, e)
                 raise UserAuthenticationException("Sign in failed, check username and password", self.token)
         except TimeoutException:
-            logger.info("Already authenticated, continuing...")
+            self.logger.info("Already authenticated, continuing...")
 
         if self.driver.title == "Homepage":  # already signed in
-            logger.info("DUO Auth passed by cookie")
+            self.logger.info("DUO Auth passed by cookie")
             self.__dump_cookies(self.driver.get_cookies())
             return None
         else:  # begin duo auth flow
             await self.wait_for_element(ec.presence_of_element_located((By.CLASS_NAME, "verification-code")))
             duo_auth_code = self.driver.find_element(By.CLASS_NAME, 'verification-code').text
-            logger.info(f"Parsed DUO Auth code: {duo_auth_code}")
+            self.logger.info(f"Parsed DUO Auth code: {duo_auth_code}")
             return duo_auth_code
 
     async def duo_auth(self, remember_me: bool) -> 'Scraper':
@@ -186,7 +171,7 @@ class Scraper:
         :return: None
         """
         self.__idle_refresh()
-        logger.info("DUO Auth required. Waiting for user interaction...")
+        self.logger.info("DUO Auth required. Waiting for user interaction...")
         try:
             if remember_me:
                 (await self.wait_for_element(ec.element_to_be_clickable((By.ID, "trust-browser-button")),
@@ -196,30 +181,14 @@ class Scraper:
                                              DUO_AUTH_TIMEOUT)).click()
             # wait until duo auth is passed
             await self.wait_for_element(ec.title_is("Homepage"), timeout=60)
-            logger.info("Sign in successful for %s", self.token.get_token())
+            self.logger.info("Sign in successful for %s", self.token)
             if remember_me:
                 self.__dump_cookies(self.driver.get_cookies())
         except TimeoutException:
-            logger.error("Duo Auth timed out")
+            self.logger.error("Duo Auth timed out")
             raise UserAuthenticationException("Duo Auth timed out", self.token)
 
         return self
-
-    def sign_out(self) -> str:
-        """
-        Signs out user, deletes user data and driver instance
-        :return: token that was signed out
-        """
-        logger.info("Signing out user %s", self.token)
-        self.delete_session()
-        # delete profile folder
-        user_to_delete = next((key for key, value in common.known_users.items() if value == self.token.get_token()),
-                              None)
-        if user_to_delete is not None:
-            del common.known_users[user_to_delete]
-            db.remove_cookies(self.token.get_token())
-
-        return self.token.get_token()
 
     async def wait_for_element(self, func, timeout=10) -> WebElement:
         """
@@ -229,7 +198,6 @@ class Scraper:
         :return: WebElement
         """
         self.__idle_refresh()
-        webdriver_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="webdriver_wait")
         return await asyncio.get_running_loop().run_in_executor(webdriver_executor,
                                                                 WebDriverWait(self.driver, timeout).until, func)
 
@@ -240,27 +208,30 @@ class Scraper:
         """
         self.__idle_refresh()
         try:
-            logger.info("Current page: %s", self.driver.title)
+            self.logger.info("Current page: %s", self.driver.title)
             if self.driver.title == title:
-                logger.info("Already on page, continuing...")
+                self.logger.info("Already on page, continuing...")
             elif self.driver.title != "Homepage":
-                logger.info("Navigating to homepage")
+                self.logger.info("Navigating to homepage")
                 self.driver.get(URL)
 
-            logger.info("Navigating to page %s...", title)
+            self.logger.info("Navigating to page %s...", title)
             await self.wait_for_element(ec.title_is("Homepage"))
             (await self.wait_for_element(lambda d: d.find_element(By.XPATH, f"//span[.='{title}']"))).click()
         except (TimeoutException, NoSuchElementException):
-            logger.exception("Could not navigate to page %s, possible sign out for user?", title)
+            self.logger.exception("Could not navigate to page %s, possible sign out for user?", title)
 
-    async def delete_session(self) -> None:
+    def delete_session(self) -> None:
         """
-        Deletes session
+        Deletes scraper session
         """
-        if self.token.get_token() not in self.driver_list and self.token.get_token() != '':
-            logger.debug("No driver found for %s. Ignoring...", self.token)
+        if self.token not in Scraper.driver_list and self.token != '':
+            self.logger.debug("No driver found for %s. Ignoring...", self.token)
             return
-        self.driver_list[self.token.get_token()].quit()
-        del self.driver_list[self.token.get_token()]
-        logger.info("Driver removed for %s", self.token)
+        self.driver.quit()
+        del Scraper.driver_list[self.token]
+        self.logger.info("Driver removed for %s", self.token)
 
+    def __del__(self):
+        self.delete_session()
+        self.logger.info("Scraper object deleted")
