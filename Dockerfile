@@ -37,18 +37,16 @@ RUN adduser \
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 # install missing libraries
-RUN apt update -y && apt install -y wget gpg
-
-RUN wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_117.0.2045.55-1_amd64.deb
-
-RUN apt install -y ./microsoft-edge-stable_117.0.2045.55-1_amd64.deb
+#RUN apt update -y && apt install -y wget gpg
+#
+#RUN wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_117.0.2045.55-1_amd64.deb
+#
+#RUN apt install -y ./microsoft-edge-stable_117.0.2045.55-1_amd64.deb
 
 # Copy the source code into the container.
 COPY . /code
 
 ENV PATH="/code/msedgedriver:${PATH}"
-
-RUN mkdir profiles
 
 # Expose the port that the application listens on.
 EXPOSE 4444

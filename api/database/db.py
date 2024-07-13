@@ -67,7 +67,7 @@ def load_cookies(token: str) -> bytes:
         with sqlite3.connect(database) as conn:
             return conn.execute("SELECT cookies FROM users WHERE token = ?", (token,)).fetchone()[0]
     except sqlite3.Error as e:
-        logger.exception(e)
+        logger.debug(e)
         raise e
 
 
@@ -85,7 +85,9 @@ def load_users() -> dict:
     logger.info("Loading all users")
     try:
         with sqlite3.connect(database) as conn:
-            return {row[0]: row[1] for row in conn.execute("SELECT user, token FROM users")}
+            users = {row[0]: row[1] for row in conn.execute("SELECT user, token FROM users")}
+            logger.info("Loaded users ", users)
+            return users
     except sqlite3.Error as e:
         logger.exception(e)
         raise e

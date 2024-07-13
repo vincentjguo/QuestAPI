@@ -6,8 +6,7 @@ from enum import IntEnum
 
 import websockets
 
-from .exceptions import SessionException
-from .session_manager import SessionManager
+from .session_manager import SessionManager, SessionException
 
 WEBSOCKET_TIMEOUT = 3
 
@@ -101,7 +100,11 @@ async def connect(websocket: websockets.WebSocketServerProtocol, path: str):
         try:
             if path == '/reconnect':
                 logger.info("Received reconnect request")
-                session.set_token(await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT))
+                token = await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT)
+                if token is None:
+                    raise websockets.exceptions.SecurityError("No token provided")
+
+                session.set_token(token)
                 await send_websocket_response(websocket, WebsocketResponseCode.SUCCESS, await session.reconnect_user())
             elif path == '/login':
                 logger.info("Received login request")
@@ -109,6 +112,9 @@ async def connect(websocket: websockets.WebSocketServerProtocol, path: str):
                 credentials = await asyncio.wait_for(websocket.recv(), timeout=WEBSOCKET_TIMEOUT)
                 remember_me = True if await asyncio.wait_for(websocket.recv(),
                                                              timeout=WEBSOCKET_TIMEOUT) == "true" else False
+                if user is None or credentials is None:
+                    raise websockets.exceptions.SecurityError("No credentials provided")
+
                 token = await session.create_user(user, credentials, remember_me,
                                                   lambda duo_auth_code:
                                                   send_websocket_response(websocket,
@@ -128,6 +134,10 @@ async def connect(websocket: websockets.WebSocketServerProtocol, path: str):
             return
         except websockets.exceptions.ConnectionClosed as e:
             logger.warning(f"Connection closed unexpectedly: {e}")
+            return
+        except asyncio.TimeoutError:
+            logger.warning("No credentials provided")
+            await websocket.close(code=1002, reason="No credentials provided")
             return
         except TimeoutError:
             logger.warning("Response timed out")

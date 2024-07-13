@@ -4,6 +4,7 @@ import datetime
 import logging
 import pathlib
 import pickle
+import sqlite3
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, ElementNotInteractableException, NoSuchElementException
@@ -19,7 +20,7 @@ URL = "https://quest.pecs.uwaterloo.ca/psc/AS/ACADEMIC/SA/c/NUI_FRAMEWORK.PT_LAN
 DUMMY_URL = "https://quest.pecs.uwaterloo.ca/nonexistent"
 PROFILE_PATH = f"{pathlib.Path().cwd()}/profiles"
 
-DUO_AUTH_TIMEOUT = 60
+DUO_AUTH_TIMEOUT = 30
 
 
 webdriver_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="webdriver_wait")
@@ -44,18 +45,16 @@ class Scraper:
         """
         Utility function to dump cookies to file in profile path
         :param cookies: Dictionary of cookies
-        :return: None
         """
         db.save_cookies(self.token, pickle.dumps(cookies))
 
     def __load_cookies(self) -> None:
         """
         Utility function to load cookies from file
-        :return: None
         """
         try:
             cookies = pickle.loads(db.load_cookies(self.token))
-        except FileNotFoundError:
+        except sqlite3.Error:
             self.logger.warning("No cookies found for %s", self.token)
             return
         self.driver.get(DUMMY_URL)
@@ -66,7 +65,7 @@ class Scraper:
     def __ini_driver(self) -> WebDriver:
         """
         Initializes a new driver instance
-        :return driver instance
+        :return: WebDriver
         """
         options = webdriver.EdgeOptions()
         # if not remember_me:
@@ -96,7 +95,7 @@ class Scraper:
     def verify_signed_on(self) -> bool:
         """
         Verifies if user is signed in
-        :return: true if signed in, false if not
+        :return: True if signed in, False if not
         """
         try:
             Scraper.driver_list[self.token].find_element(By.CSS_SELECTOR, "#PT_ACTION_MENU\\$PIMG")
@@ -164,11 +163,11 @@ class Scraper:
             self.logger.info(f"Parsed DUO Auth code: {duo_auth_code}")
             return duo_auth_code
 
-    async def duo_auth(self, remember_me: bool) -> 'Scraper':
+    async def duo_auth(self, remember_me: bool) -> None:
         """
         Completes duo auth login step. Updates last accessed time
         :param remember_me: If user should be remembered
-        :return: None
+        :raises UserAuthenticationException: if duo auth fails to pass
         """
         self.__idle_refresh()
         self.logger.info("DUO Auth required. Waiting for user interaction...")
@@ -180,7 +179,7 @@ class Scraper:
                 (await self.wait_for_element(ec.element_to_be_clickable((By.ID, "dont-trust-browser-button")),
                                              DUO_AUTH_TIMEOUT)).click()
             # wait until duo auth is passed
-            await self.wait_for_element(ec.title_is("Homepage"), timeout=60)
+            await self.wait_for_element(ec.title_is("Homepage"), timeout=DUO_AUTH_TIMEOUT)
             self.logger.info("Sign in successful for %s", self.token)
             if remember_me:
                 self.__dump_cookies(self.driver.get_cookies())
@@ -188,14 +187,14 @@ class Scraper:
             self.logger.error("Duo Auth timed out")
             raise UserAuthenticationException("Duo Auth timed out", self.token)
 
-        return self
+        return
 
     async def wait_for_element(self, func, timeout=10) -> WebElement:
         """
         Waits for element to be present. Updates last accessed time
         :param func: function to find element
         :param timeout: time to wait
-        :return: WebElement
+        :return: WebElement to be found
         """
         self.__idle_refresh()
         return await asyncio.get_running_loop().run_in_executor(webdriver_executor,
@@ -205,6 +204,7 @@ class Scraper:
         """
         Verifies if page is correct, if not navigates to correct page. Updates last accessed time
         :param title: title of page
+        :raises TimeoutException | NoSuchElementException: if page cannot be navigated to
         """
         self.__idle_refresh()
         try:
@@ -218,8 +218,9 @@ class Scraper:
             self.logger.info("Navigating to page %s...", title)
             await self.wait_for_element(ec.title_is("Homepage"))
             (await self.wait_for_element(lambda d: d.find_element(By.XPATH, f"//span[.='{title}']"))).click()
-        except (TimeoutException, NoSuchElementException):
+        except (TimeoutException, NoSuchElementException) as e:
             self.logger.exception("Could not navigate to page %s, possible sign out for user?", title)
+            raise e
 
     def delete_session(self) -> None:
         """

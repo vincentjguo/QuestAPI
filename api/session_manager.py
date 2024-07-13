@@ -8,16 +8,21 @@ import selenium.common.exceptions
 import websockets
 
 from api.database import db
-from api.exceptions import SessionException
+from api.database.models.course_info_model import Course
 from api.scraper import schedule
 from api.scraper.schedule import ScheduleException
 from api.scraper.scraper import Scraper, UserAuthenticationException
 
 BPM = 1
-prune_interval = 600
+prune_interval = 300
 
 # {username : token}
 known_users: {str, str} = db.load_users()
+
+
+class SessionException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 
 class SessionManager(ContextDecorator):
@@ -48,10 +53,10 @@ class SessionManager(ContextDecorator):
     def __del__(self):
         self.remove_scraper()
 
-    async def __heartbeat(self):
+    async def __heartbeat(self) -> None:
         """
         Heartbeat task to check if the session is still active
-        :return:
+        :raises websockets.exceptions.SecurityError: session is inactive
         """
         self.logger.debug("Starting heartbeat task")
         try:
@@ -92,6 +97,10 @@ class SessionManager(ContextDecorator):
         await self.reconnect_user()
 
     def create_scraper(self) -> None:
+        """
+        Creates a new scraper instance and starts heartbeat task
+        :raises SessionException: scraper is already active
+        """
         if self.active:
             self.logger.warning("Scraper already active")
             raise SessionException("Scraper already active")
@@ -104,22 +113,13 @@ class SessionManager(ContextDecorator):
         """
         Reconnects a user to an existing session using previously set token
         :return: the existing token used to reconnect
-        :raises: websockets.exceptions.SecurityError if token is invalid
+        :raises websockets.exceptions.SecurityError: invalid token
         """
 
         try:
             if self.token not in known_users.values():
-                self.logger.error("Unauthorized token %s", self.scraper.token)
+                self.logger.error("Unauthorized token %s", self.token)
                 raise websockets.exceptions.SecurityError("Invalid token")
-
-            self.create_scraper()
-            self.scraper.recreate_session()
-        except asyncio.TimeoutError:
-            self.logger.warning("No token provided")
-            raise websockets.exceptions.SecurityError("No token provided")
-
-        try:
-            self.scraper.recreate_session()
 
             self.logger.info(f"Session created for {self.token}")
             return self.token
@@ -132,7 +132,7 @@ class SessionManager(ContextDecorator):
         Creates a new session for a user with the given credentials
         Callback is for duo auth prompts
         :return: the new token used to create the session
-        :raises: websockets.exceptions.SecurityError if credentials are invalid
+        :raises websockets.exceptions.SecurityError:  credentials invalid
         """
 
         try:
@@ -161,10 +161,10 @@ class SessionManager(ContextDecorator):
     async def handle_search_classes(self, term: str, subject: str, class_number: str) -> dict:
         """
         Handles search requests for classes
-        :param term:
-        :param subject:
-        :param class_number:
-        :return:
+        :param term: term code
+        :param subject: subject name
+        :param class_number: class number
+        :raises SessionException: on search failure
         """
         self.logger.info("Received search request for %s %s %s", term, subject, class_number)
         try:
@@ -180,8 +180,8 @@ class SessionManager(ContextDecorator):
             raise SessionException("Unexpected Error: Could not search classes")
         except ScheduleException as e:
             self.logger.warning(e)
-            raise e
-        # TODO: Refactor to return get_sections() instantly - DetachedInstanceError
+            db.upsert_course_info(term, Course(term, subject, class_number))  # set as no results found
+            raise SessionException("No results found")
         return result.get_sections()
 
     def handle_sign_out(self) -> None:
