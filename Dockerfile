@@ -37,7 +37,10 @@ RUN adduser \
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 # install missing libraries
-#RUN apt update -y && apt install -y wget gpg
+RUN apt update -y && apt-get install -y libglib2.0-0 \
+                             libnss3 \
+                             libgconf-2-4 \
+                             libfontconfig1
 #
 #RUN wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_117.0.2045.55-1_amd64.deb
 #
