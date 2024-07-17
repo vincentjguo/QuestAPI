@@ -46,7 +46,7 @@ RUN apt install -y ./microsoft-edge-stable_117.0.2045.55-1_amd64.deb
 # Copy the source code into the container.
 COPY . /code
 
-#ENV PATH="/code/msedgedriver:${PATH}"
+ENV PATH="/code/msedgedriver:${PATH}"
 
 # Expose the port that the application listens on.
 EXPOSE 4444
