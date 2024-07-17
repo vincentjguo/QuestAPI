@@ -44,9 +44,9 @@ RUN wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-st
 RUN apt install -y ./microsoft-edge-stable_117.0.2045.55-1_amd64.deb
 
 # Copy the source code into the container.
-COPY . /code
+COPY ./api /code
 
-ENV PATH="/code/msedgedriver:/usr/local/bin/python:${PATH}"
+COPY ./msedgedriver /usr/bin/
 
 # Expose the port that the application listens on.
 EXPOSE 4444
