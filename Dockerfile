@@ -46,14 +46,12 @@ RUN apt install -y ./microsoft-edge-stable_117.0.2045.55-1_amd64.deb
 # Copy the source code into the container.
 COPY . /code
 
-ENV PATH="/code/msedgedriver:${PATH}"
+ENV PATH="/code/msedgedriver:/usr/local/bin/python:${PATH}"
 
 # Expose the port that the application listens on.
 EXPOSE 4444
 
 # Set environment variables.
-ENV CERT_PATH=""
-ENV KEY_PATH=""
 ENV DEBUG="False"
 
 # Run the application.
