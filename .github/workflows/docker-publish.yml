@@ -94,3 +94,15 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Digital Ocean
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          TOKEN: ${{secrets.DIGITALOCEAN_TOKEN}}
+        run: |
+          curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${TOKEN}" "https://api.digitalocean.com/v2/apps/{app_id}/deployments"
+
