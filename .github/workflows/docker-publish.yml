@@ -102,5 +102,6 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         env:
           TOKEN: ${{secrets.DIGITALOCEAN_TOKEN}}
-        run: curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${TOKEN}" "https://api.digitalocean.com/v2/apps/{app_id}/deployments"
+        run: |
+          curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${TOKEN}" "https://api.digitalocean.com/v2/apps/{app_id}/deployments"
 
