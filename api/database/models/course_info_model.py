@@ -59,7 +59,7 @@ class Course(Base):
         self.sections.append(section)
 
     def __repr__(self):
-        return f"{self.term} {self.subject} {self.code} {str(self.sections)}"
+        return f"{self.id} {str(self.sections)}"
 
 
 class Term(Base):
