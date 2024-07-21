@@ -22,13 +22,13 @@ Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine, expire_on_commit=False)
 
 
-def get_course_info(term: str, subject: str, number: str):
-    logger.info("Getting course info for %s %s %s", term, subject, number)
+def get_course_info(term: str, subject: str, code: str):
+    logger.info("Getting course info for %s %s %s", term, subject, code)
     try:
         with Session() as session:
             return (session.query(Course)
                     .options(selectinload(Course.sections))  # Eagerly load the 'sections' relationship
-                    .filter_by(term=term, subject=subject, code=number)
+                    .filter_by(term=term, subject=subject, code=code)
                     .first())
     except SQLAlchemyError as e:
         logger.exception(e)

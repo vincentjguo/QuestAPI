@@ -93,7 +93,11 @@ class SessionManager(ContextDecorator):
 
         self.logger.info("Waking up scraper...")
         self.create_scraper()
-        self.scraper.recreate_session()
+        try:
+            self.scraper.recreate_session()
+        except UserAuthenticationException as e:
+            self.handle_sign_out()
+            raise websockets.exceptions.SecurityError(e)
 
     def create_scraper(self) -> None:
         """
@@ -114,16 +118,12 @@ class SessionManager(ContextDecorator):
         :return: the existing token used to reconnect
         :raises websockets.exceptions.SecurityError: invalid token
         """
-        try:
-            if self.token not in known_users.values():
-                self.logger.error("Unauthorized token %s", self.token)
-                raise websockets.exceptions.SecurityError("Invalid token")
+        if self.token not in known_users.values():
+            self.logger.error("Unauthorized token %s", self.token)
+            raise websockets.exceptions.SecurityError("Invalid token")
 
-            self.logger.info(f"Session created for {self.token}")
-            return self.token
-        except UserAuthenticationException as e:
-            self.handle_sign_out()
-            raise websockets.exceptions.SecurityError(e)
+        self.logger.info(f"Session created for {self.token}")
+        return self.token
 
     async def create_user(self, user: str, credentials: str, remember_me: bool, callback) -> str:
         """
@@ -167,6 +167,7 @@ class SessionManager(ContextDecorator):
         self.logger.info("Received search request for %s %s %s", term, subject, class_number)
         try:
             result = db.get_course_info(term, subject, class_number)
+            self.logger.info("Database result: %s", result)
             if result is None:
                 self.logger.info("Course info not found in database. Searching...")
                 await self.wake_scraper()
