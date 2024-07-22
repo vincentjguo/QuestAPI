@@ -71,12 +71,11 @@ class SessionManager(ContextDecorator):
                     self.remove_scraper()
                     return
 
-                # TODO: Add check for idle warning and attempt to bypass
-                if self.scraper.verify_signed_on():
-                    self.logger.debug("Pulse check passed for this session")
-                else:
-                    self.logger.warning("Pulse check failed for this session")
-                    raise websockets.exceptions.SecurityError("Dead session. Reauthenticate!")
+                # if self.scraper.verify_signed_on():
+                #     self.logger.debug("Pulse check passed for this session")
+                # else:
+                #     self.logger.warning("Pulse check failed for this session")
+                #     raise websockets.exceptions.SecurityError("Dead session. Reauthenticate!")
         except asyncio.CancelledError:
             self.logger.debug("Heartbeat task cancelled")
             return
