@@ -59,4 +59,6 @@ if __name__ == "__main__":
     logger.setLevel(LOG_LEVEL)
     logging.getLogger('websockets.server').setLevel(LOG_LEVEL * 2 - 10)  # set to WARN on INFO and DEBUG on DEBUG
 
+    logger.info("Starting server...")
+
     asyncio.run(websocket())
