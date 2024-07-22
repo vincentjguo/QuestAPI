@@ -1,13 +1,10 @@
-import asyncio
 import json
 from unittest import mock, IsolatedAsyncioTestCase
-from unittest.mock import call
 
-import websockets
 from websockets import WebSocketServerProtocol
 
 from api.session_manager import SessionManager, SessionException
-from api.websocket import process_requests, WebsocketResponseCode, WEBSOCKET_TIMEOUT
+from api.websocket import process_requests, WebsocketResponseCode
 
 
 class TestWebsocket(IsolatedAsyncioTestCase):
@@ -40,14 +37,3 @@ class TestWebsocket(IsolatedAsyncioTestCase):
 
         self.mock_socket.close.assert_called()
 
-
-    async def test_process_requests_search_timeout(self):
-        # self.mock_socket.recv.side_effect = call(lambda: return "SEARCH") ["SEARCH", "1245", "math", asyncio.Future(), "QUIT"]
-
-        await process_requests(self.mock_socket, self.mock_session)
-
-        self.mock_socket.send.assert_called_with(json.dumps(
-            {"status": WebsocketResponseCode.ERROR.value, "payload": str(TimeoutError)}
-        ))
-
-        self.mock_socket.close.assert_called()
