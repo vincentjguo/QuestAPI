@@ -8,12 +8,11 @@ A ~~API~~ websocket server to securely perform actions on the UWaterloo Quest sy
 ```dockerfile
 services:
   questAPI:
-    build: .
-    container_name: questAPI
     image: ghcr.io/vincentjguo/questapi:latest
+    container_name: questAPI
     ports:
-      - '4444:4444'
-    restart: "unless-stopped"
+      - 4444:4444
+    restart: unless-stopped
 ```
 
 ### Running Locally
