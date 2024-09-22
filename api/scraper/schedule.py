@@ -1,4 +1,5 @@
 import logging
+import time
 
 from selenium.common import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.by import By
@@ -37,13 +38,14 @@ async def search_classes(scraper: Scraper, term: str, subject: str, number: str)
 
         driver.find_element(By.CSS_SELECTOR, "#PSTAB > table > tbody > tr > td:nth-child(3) > a").click()
         Select(driver.find_element(By.CSS_SELECTOR, r"#CLASS_SRCH_WRK2_STRM\$35\$")).select_by_value(term)
+        time.sleep(1)  # wait for form query
         driver.find_element(By.CSS_SELECTOR, r"#SSR_CLSRCH_WRK_SUBJECT\$0").send_keys(subject)
         driver.find_element(By.CSS_SELECTOR, r"#SSR_CLSRCH_WRK_CATALOG_NBR\$1").send_keys(number)
         driver.find_element(By.CSS_SELECTOR, r"#SSR_CLSRCH_WRK_SSR_OPEN_ONLY\$3").click()
 
         driver.find_element(By.CSS_SELECTOR, "#CLASS_SRCH_WRK2_SSR_PB_CLASS_SRCH").click()
         await scraper.wait_for_element(
-            ec.text_to_be_present_in_element((By.ID, "DERIVED_REGFRM1_TITLE1"),
+            ec.text_to_be_present_in_element((By.CLASS_NAME, "PAPAGETITLE"),
                                              "Search Results"))
     except (TimeoutException, NoSuchElementException) as e:
         logger.error("Search failed for %s %s %s", term, subject, number)
